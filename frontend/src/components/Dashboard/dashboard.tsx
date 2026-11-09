@@ -1,4 +1,9 @@
-import { useState, type ChangeEvent, type HTMLAttributes, type ReactNode } from "react";
+import {
+  useState,
+  type ChangeEvent,
+  type HTMLAttributes,
+  type ReactNode,
+} from "react";
 import {
   CalendarCheck,
   Users,
@@ -16,6 +21,7 @@ import {
   Filter,
 } from "lucide-react";
 import InventoryManagement from "../Inventory/Inventory";
+import MenuPage from "../Menu/menu";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -195,6 +201,7 @@ function NavySidebar({
   const navItems = [
     { id: "dashboard", label: "Overview", icon: LayoutDashboard },
     { id: "Inventory", label: "Inventory", icon: Boxes },
+    { id: "Menu", label: "Menu", icon: Utensils },
   ];
 
   return (
@@ -409,7 +416,9 @@ export default function Dashboard({
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
               <Input
                 value={searchTerm}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                  setSearchTerm(e.target.value)
+                }
                 placeholder="Search reservations, table numbers, or guests..."
                 className="pl-10 h-9 bg-slate-950/60 border-slate-800 text-xs text-slate-200 placeholder:text-slate-500"
               />
@@ -443,6 +452,7 @@ export default function Dashboard({
           }
         >
           {activeTab === "Inventory" && <InventoryManagement />}
+          {activeTab === "Menu" && <MenuPage />}
           {activeTab === "dashboard" && (
             <>
               {/* Header Intro */}
@@ -592,7 +602,9 @@ export default function Dashboard({
             </>
           )}
 
-          {activeTab !== "dashboard" && activeTab !== "Inventory" && (
+          {activeTab !== "dashboard" &&
+            activeTab !== "Inventory" &&
+            activeTab !== "Menu" && (
             <div className="flex flex-col items-center justify-center min-h-[400px] border border-dashed border-slate-800 rounded-3xl p-8 bg-slate-900/40 text-center">
               <div className="p-4 rounded-full bg-slate-800/80 text-amber-400 mb-4 border border-slate-700">
                 <Utensils className="size-8" />

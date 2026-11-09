@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   Boxes,
   AlertTriangle,
@@ -11,6 +11,8 @@ import {
   X,
   CheckCircle2,
   Download,
+  RefreshCw,
+  Pencil,
 } from "lucide-react";
 
 // Utility for merging Tailwind class names
@@ -51,11 +53,66 @@ type StockAdjustment = {
   note: string;
 };
 
+type InventoryEditForm = {
+  name: string;
+  category: string;
+  unit: string;
+  minStock: string;
+  maxStock: string;
+  costPerUnit: string;
+  supplier: string;
+};
+
 type InventoryApiResponse<T> = {
   success: boolean;
   data?: T;
   message?: string;
 };
+
+type SyncResult = {
+  date: string;
+  synced: number;
+  menu?: number;
+  ingredientsDeducted?: number;
+  unitWarnings?: string[];
+  skipped?: number;
+  byDepartment?: Record<string, number>;
+};
+
+const DEPARTMENTS = [
+  "Kitchen Inventory",
+  "Bar Inventory",
+  "Promo Inventory",
+] as const;
+
+const EMPTY_NEW_ITEM: NewInventoryForm = {
+  name: "",
+  department: "",
+  quantity: 0,
+  unit: "",
+  purchases: 0,
+  sold: 0,
+  used: 0,
+  ending: 0,
+  remarks: "",
+};
+
+// YYYY-MM-DD in Manila time (en-CA formats as an ISO date).
+// toISOString() would use UTC and show yesterday between 12AM and 8AM.
+const todayISO = () =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(
+    new Date(),
+  );
+
+// Derive status from numbers so the badge is always right,
+// even if the backend returns an empty or stale status.
+function getStatus(
+  item: InventoryItem,
+): "In Stock" | "Low Stock" | "Out of Stock" {
+  if (item.stock <= 0) return "Out of Stock";
+  if (item.stock <= item.minStock) return "Low Stock";
+  return "In Stock";
+}
 
 async function inventoryRequest<T>(
   method: "GET" | "POST" | "PATCH" = "GET",
@@ -80,6 +137,22 @@ async function inventoryRequest<T>(
   return result.data;
 }
 
+// StoreHub credentials live in PHP only. The browser just triggers the sync.
+async function storeHubSyncRequest(date: string): Promise<SyncResult> {
+  const response = await fetch("../backend/inventory/storehub_sync.php", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ date }),
+  });
+  const result = (await response.json()) as InventoryApiResponse<SyncResult>;
+
+  if (!response.ok || !result.success || !result.data) {
+    throw new Error(result.message || "StoreHub sync failed.");
+  }
+  return result.data;
+}
+
 /* -------------------------------------------------------------------------- */
 /*                          MAIN INVENTORY COMPONENT                          */
 /* -------------------------------------------------------------------------- */
@@ -90,30 +163,35 @@ export default function InventoryManagement() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncDate, setSyncDate] = useState(todayISO());
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
   // Modals state
   const [isNewItemOpen, setIsNewItemOpen] = useState(false);
   const [isAdjustOpen, setIsAdjustOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedItemForAdjust, setSelectedItemForAdjust] =
+    useState<InventoryItem | null>(null);
+  const [selectedItemForEdit, setSelectedItemForEdit] =
     useState<InventoryItem | null>(null);
 
   // New Item Form State
-  const [newItem, setNewItem] = useState<NewInventoryForm>({
+  const [newItem, setNewItem] = useState<NewInventoryForm>(EMPTY_NEW_ITEM);
+  const [editData, setEditData] = useState<InventoryEditForm>({
     name: "",
-    department: "",
-    quantity: 0,
+    category: "",
     unit: "",
-    purchases: 0,
-    sold: 0,
-    used: 0,
-    ending: 0,
-    remarks: "",
+    minStock: "5",
+    maxStock: "50",
+    costPerUnit: "0",
+    supplier: "",
   });
+
   // Adjust Stock Form State
   const [adjustData, setAdjustData] = useState<StockAdjustment>({
-    type: "add", // 'add' or 'subtract'
+    type: "add",
     amount: 1,
     reason: "Delivery Receive",
     note: "",
@@ -121,11 +199,17 @@ export default function InventoryManagement() {
 
   // Notification Toast State
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimer = useRef<number | undefined>(undefined);
+
+  /* ------------------------------- DATA LOAD -------------------------------- */
 
   useEffect(() => {
     const controller = new AbortController();
     inventoryRequest<InventoryItem[]>("GET", undefined, controller.signal)
-      .then(setInventory)
+      .then((items) => {
+        setInventory(items);
+        setLoadError(null);
+      })
       .catch((error: unknown) => {
         if (!controller.signal.aborted) {
           setLoadError(
@@ -142,20 +226,27 @@ export default function InventoryManagement() {
     return () => controller.abort();
   }, [reloadToken]);
 
+  // Clear any pending toast timer on unmount
+  useEffect(() => {
+    return () => window.clearTimeout(toastTimer.current);
+  }, []);
+
   const showToast = (msg: string) => {
+    window.clearTimeout(toastTimer.current);
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+    toastTimer.current = window.setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const reloadInventory = () => {
+    setLoadError(null);
+    setIsLoading(true);
+    setReloadToken((token) => token + 1);
   };
 
   const categories = [
     "All",
-    ...new Set([
-      "Kitchen",
-      "Bar",
-      "Promo Inventory",
-      ...inventory.map((item) => item.category),
-    ]),
-  ];
+    ...new Set([...DEPARTMENTS, ...inventory.map((item) => item.category)]),
+  ].filter(Boolean);
 
   /* ------------------------------- METRICS ---------------------------------- */
 
@@ -166,20 +257,21 @@ export default function InventoryManagement() {
   const lowStockCount = inventory.filter(
     (item) => item.stock > 0 && item.stock <= item.minStock,
   ).length;
-  const outOfStockCount = inventory.filter((item) => item.stock === 0).length;
+  const outOfStockCount = inventory.filter((item) => item.stock <= 0).length;
   const healthyStockCount = inventory.filter(
     (item) => item.stock > item.minStock,
   ).length;
 
   /* ------------------------------- FILTERING -------------------------------- */
 
+  const query = searchQuery.trim().toLowerCase();
   const filteredInventory = inventory.filter((item) => {
     const matchesCategory =
       selectedCategory === "All" || item.category === selectedCategory;
     const matchesSearch =
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.supplier.toLowerCase().includes(searchQuery.toLowerCase());
+      item.name.toLowerCase().includes(query) ||
+      item.id.toLowerCase().includes(query) ||
+      (item.supplier ?? "").toLowerCase().includes(query);
     return matchesCategory && matchesSearch;
   });
 
@@ -236,17 +328,7 @@ export default function InventoryManagement() {
       });
       setInventory((prev) => [createdRecord, ...prev]);
       setIsNewItemOpen(false);
-      setNewItem({
-        name: "",
-        department: "",
-        quantity: 0,
-        unit: "",
-        purchases: 0,
-        sold: 0,
-        used: 0,
-        ending: 0,
-        remarks: "",
-      });
+      setNewItem(EMPTY_NEW_ITEM);
       showToast(`Added ingredient: "${createdRecord.name}" to inventory.`);
     } catch (error) {
       showToast(
@@ -263,18 +345,24 @@ export default function InventoryManagement() {
     e.preventDefault();
     if (!selectedItemForAdjust) return;
 
+    const amount = Number(adjustData.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showToast("Enter a quantity greater than zero.");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const updatedItem = await inventoryRequest<InventoryItem>("PATCH", {
         id: selectedItemForAdjust.id,
         ...adjustData,
-        amount: Number(adjustData.amount),
+        amount,
       });
       updateItem(updatedItem);
       showToast(
         `Adjusted ${selectedItemForAdjust.name}: ${
           adjustData.type === "add" ? "+" : "-"
-        }${adjustData.amount} ${selectedItemForAdjust.unit}`,
+        }${amount} ${selectedItemForAdjust.unit}`,
       );
       setIsAdjustOpen(false);
       setSelectedItemForAdjust(null);
@@ -284,6 +372,103 @@ export default function InventoryManagement() {
       );
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const openEditModal = (item: InventoryItem) => {
+    setSelectedItemForEdit(item);
+    setEditData({
+      name: item.name,
+      category: item.category,
+      unit: item.unit,
+      minStock: String(item.minStock),
+      maxStock: String(item.maxStock),
+      costPerUnit: String(item.costPerUnit),
+      supplier: item.supplier,
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleEditSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selectedItemForEdit) return;
+
+    const minStock = Number(editData.minStock);
+    const maxStock = Number(editData.maxStock);
+    const costPerUnit = Number(editData.costPerUnit);
+    if (
+      !editData.name.trim() ||
+      !editData.category.trim() ||
+      !editData.unit.trim() ||
+      !Number.isFinite(minStock) ||
+      minStock < 0 ||
+      !Number.isFinite(maxStock) ||
+      maxStock <= 0 ||
+      maxStock < minStock ||
+      !Number.isFinite(costPerUnit) ||
+      costPerUnit < 0
+    ) {
+      showToast("Enter valid item details and stock thresholds.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const updatedItem = await inventoryRequest<InventoryItem>("PATCH", {
+        action: "edit",
+        id: selectedItemForEdit.id,
+        ...editData,
+        name: editData.name.trim(),
+        category: editData.category.trim(),
+        unit: editData.unit.trim(),
+        supplier: editData.supplier.trim(),
+        minStock,
+        maxStock,
+        costPerUnit,
+      });
+      updateItem(updatedItem);
+      setIsEditOpen(false);
+      setSelectedItemForEdit(null);
+      showToast(`Updated "${updatedItem.name}".`);
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Unable to update item.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSyncStoreHub = async () => {
+    if (isSyncing) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(syncDate)) {
+      showToast("Pick a valid sync date.");
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      const result = await storeHubSyncRequest(syncDate);
+      reloadInventory();
+      const menuCount = result.menu ?? 0;
+      const ingredientsDeducted = result.ingredientsDeducted ?? 0;
+      const unitWarnings = result.unitWarnings ?? [];
+      const skipped = result.skipped ?? 0;
+      showToast(
+        `Synced ${result.synced} bar item${result.synced === 1 ? "" : "s"}, ${menuCount} menu item${menuCount === 1 ? "" : "s"}, and deducted ingredients for ${ingredientsDeducted} item${ingredientsDeducted === 1 ? "" : "s"} on ${result.date}.` +
+          (unitWarnings.length > 0
+            ? ` Recipe unit mismatch: ${unitWarnings[0]}${unitWarnings.length > 1 ? ` (+${unitWarnings.length - 1} more)` : ""}`
+            : "") +
+          (skipped > 0
+            ? ` ${skipped} transaction${skipped === 1 ? "" : "s"} on other dates skipped.`
+            : ""),
+      );
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "StoreHub sync failed.",
+      );
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -301,8 +486,8 @@ export default function InventoryManagement() {
       "Last Restocked",
       "Status",
     ];
-    const escapeCsv = (value: string | number) =>
-      `"${String(value).replaceAll('"', '""')}"`;
+    const escapeCsv = (value: string | number | null | undefined) =>
+      `"${String(value ?? "").replaceAll('"', '""')}"`;
     const rows = inventory.map((item) =>
       [
         item.id,
@@ -315,21 +500,19 @@ export default function InventoryManagement() {
         item.costPerUnit,
         item.supplier,
         item.lastRestocked,
-        item.status,
+        getStatus(item),
       ]
         .map(escapeCsv)
         .join(","),
     );
     const file = new Blob(
-      [[columns.map(escapeCsv).join(","), ...rows].join("\r\n")],
-      {
-        type: "text/csv;charset=utf-8",
-      },
+      ["\uFEFF" + [columns.map(escapeCsv).join(","), ...rows].join("\r\n")],
+      { type: "text/csv;charset=utf-8" },
     );
     const url = URL.createObjectURL(file);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "nooma-inventory.csv";
+    link.download = `nooma-inventory-${todayISO()}.csv`;
     link.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   };
@@ -345,19 +528,25 @@ export default function InventoryManagement() {
     setIsAdjustOpen(true);
   };
 
+  /* --------------------------------- RENDER --------------------------------- */
+
   return (
     <div className="min-h-screen bg-[#020617] text-slate-100 font-sans antialiased selection:bg-amber-500/20 selection:text-amber-300">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-6 right-6 z-50 flex items-center gap-3 rounded-2xl border border-amber-500/40 bg-[#0F172A] px-5 py-3.5 text-xs text-amber-300 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-4">
+        <div
+          role="status"
+          className="fixed top-6 right-6 z-50 flex items-center gap-3 rounded-2xl border border-amber-500/40 bg-[#0F172A] px-5 py-3.5 text-xs text-amber-300 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-4"
+        >
           <CheckCircle2 className="size-4 text-amber-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
+
       {/* Main Container */}
       <div className="mx-auto max-w-7xl p-6 md:p-8 space-y-8">
         {/* Top Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-6">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800/80 pb-6">
           <div>
             <div className="flex items-center gap-3">
               <span className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
@@ -374,11 +563,11 @@ export default function InventoryManagement() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={handleExportCsv}
               disabled={inventory.length === 0}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/80 px-4 py-2.5 text-xs font-medium text-slate-300 transition-all hover:bg-slate-800 hover:text-white"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/80 px-4 py-2.5 text-xs font-medium text-slate-300 transition-all hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Download className="size-3.5 text-slate-400" /> Export CSV
             </button>
@@ -388,6 +577,32 @@ export default function InventoryManagement() {
             >
               <Plus className="size-4" /> Add New Item
             </button>
+
+            {/* StoreHub sync: date + button */}
+            <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-1 pl-3">
+              <label htmlFor="sync-date" className="sr-only">
+                StoreHub sync date
+              </label>
+              <input
+                id="sync-date"
+                type="date"
+                value={syncDate}
+                max={todayISO()}
+                onChange={(e) => setSyncDate(e.target.value)}
+                disabled={isSyncing}
+                className="bg-transparent text-xs text-emerald-200 focus:outline-none [color-scheme:dark] disabled:opacity-50"
+              />
+              <button
+                onClick={handleSyncStoreHub}
+                disabled={isSyncing || !syncDate}
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={cn("size-3.5", isSyncing && "animate-spin")}
+                />
+                {isSyncing ? "Syncing..." : "Sync StoreHub"}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -476,7 +691,7 @@ export default function InventoryManagement() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by ingredient name, SKU (e.g. SKU-A5-WAGYU), or supplier..."
+                placeholder="Search by ingredient name, SKU, or supplier..."
                 className="w-full rounded-xl border border-slate-800 bg-[#020617] pl-10 pr-4 py-2.5 text-xs text-slate-200 placeholder:text-slate-500 focus:border-amber-500/80 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
               />
             </div>
@@ -559,11 +774,7 @@ export default function InventoryManagement() {
                     <td colSpan={8} className="py-12 text-center text-red-300">
                       {loadError}{" "}
                       <button
-                        onClick={() => {
-                          setLoadError(null);
-                          setIsLoading(true);
-                          setReloadToken((token) => token + 1);
-                        }}
+                        onClick={reloadInventory}
                         className="ml-2 text-amber-300 underline underline-offset-2"
                       >
                         Retry
@@ -577,16 +788,23 @@ export default function InventoryManagement() {
                       className="py-12 text-center text-slate-500"
                     >
                       {inventory.length === 0
-                        ? "No inventory items yet. Add an item to get started."
-                        : `No matching inventory items found for "${searchQuery}".`}
+                        ? "No inventory items yet. Add an item or sync from StoreHub to get started."
+                        : "No matching inventory items found."}
                     </td>
                   </tr>
                 ) : (
                   filteredInventory.map((item) => {
-                    const stockPercentage = Math.min(
-                      100,
-                      Math.round((item.stock / item.maxStock) * 100),
-                    );
+                    const stockPercentage =
+                      item.maxStock > 0
+                        ? Math.min(
+                            100,
+                            Math.max(
+                              0,
+                              Math.round((item.stock / item.maxStock) * 100),
+                            ),
+                          )
+                        : 0;
+                    const status = getStatus(item);
 
                     return (
                       <tr
@@ -623,15 +841,14 @@ export default function InventoryManagement() {
                                 Min: {item.minStock} {item.unit}
                               </span>
                             </div>
-                            {/* Visual Progress Bar */}
                             <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
                               <div
                                 style={{ width: `${stockPercentage}%` }}
                                 className={cn(
                                   "h-full rounded-full transition-all duration-300",
-                                  item.stock === 0
+                                  status === "Out of Stock"
                                     ? "bg-red-500"
-                                    : item.stock <= item.minStock
+                                    : status === "Low Stock"
                                       ? "bg-amber-500"
                                       : "bg-emerald-500",
                                 )}
@@ -645,23 +862,23 @@ export default function InventoryManagement() {
                           <span
                             className={cn(
                               "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wider uppercase border",
-                              item.status === "In Stock" &&
+                              status === "In Stock" &&
                                 "bg-emerald-950/80 text-emerald-300 border-emerald-700/50",
-                              item.status === "Low Stock" &&
+                              status === "Low Stock" &&
                                 "bg-amber-950/80 text-amber-300 border-amber-700/50 animate-pulse",
-                              item.status === "Out of Stock" &&
+                              status === "Out of Stock" &&
                                 "bg-red-950/80 text-red-300 border-red-700/50",
                             )}
                           >
                             <span
                               className={cn(
                                 "size-1.5 rounded-full",
-                                item.status === "In Stock" && "bg-emerald-400",
-                                item.status === "Low Stock" && "bg-amber-400",
-                                item.status === "Out of Stock" && "bg-red-400",
+                                status === "In Stock" && "bg-emerald-400",
+                                status === "Low Stock" && "bg-amber-400",
+                                status === "Out of Stock" && "bg-red-400",
                               )}
                             />
-                            {item.status}
+                            {status}
                           </span>
                         </td>
 
@@ -681,19 +898,28 @@ export default function InventoryManagement() {
 
                         {/* Supplier */}
                         <td className="py-4 px-4 text-slate-400">
-                          {item.supplier}
+                          {item.supplier || "—"}
                         </td>
 
                         {/* Quick Increment/Decrement Actions */}
                         <td className="py-4 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <button
+                              onClick={() => openEditModal(item)}
+                              disabled={isSaving}
+                              title="Edit item details"
+                              aria-label={`Edit ${item.name}`}
+                              className="p-1.5 rounded-lg border border-slate-800 bg-slate-900 text-slate-400 hover:text-amber-300 hover:bg-slate-800 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <Pencil className="size-3.5" />
+                            </button>
+                            <button
                               onClick={() =>
                                 handleQuickQuantityChange(item.id, -1)
                               }
-                              disabled={isSaving}
+                              disabled={isSaving || item.stock <= 0}
                               title="Decrease Stock (-1)"
-                              className="p-1.5 rounded-lg border border-slate-800 bg-slate-900 text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors"
+                              className="p-1.5 rounded-lg border border-slate-800 bg-slate-900 text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                             >
                               <MinusCircle className="size-3.5" />
                             </button>
@@ -703,7 +929,7 @@ export default function InventoryManagement() {
                               }
                               disabled={isSaving}
                               title="Increase Stock (+1)"
-                              className="p-1.5 rounded-lg border border-slate-800 bg-slate-900 text-slate-400 hover:text-emerald-400 hover:bg-slate-800 transition-colors"
+                              className="p-1.5 rounded-lg border border-slate-800 bg-slate-900 text-slate-400 hover:text-emerald-400 hover:bg-slate-800 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                             >
                               <PlusCircle className="size-3.5" />
                             </button>
@@ -725,10 +951,10 @@ export default function InventoryManagement() {
         </div>
       </div>
 
+      {/* Register New Inventory Modal */}
       {isNewItemOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/80 px-4 backdrop-blur-sm animate-in fade-in">
           <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-[#0F172A] p-6 shadow-2xl">
-            {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-500">
@@ -742,13 +968,13 @@ export default function InventoryManagement() {
               <button
                 type="button"
                 onClick={() => setIsNewItemOpen(false)}
+                aria-label="Close"
                 className="p-1.5 rounded-xl border border-slate-800 bg-slate-900 text-slate-400 hover:text-white"
               >
                 <X className="size-4" />
               </button>
             </div>
 
-            {/* Form */}
             <form
               onSubmit={handleCreateItemSubmit}
               className="mt-5 space-y-4 text-xs"
@@ -758,17 +984,13 @@ export default function InventoryManagement() {
                 <label className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">
                   Inventory Name *
                 </label>
-
                 <input
                   type="text"
                   required
                   placeholder="e.g. Chicken Breast"
                   value={newItem.name}
                   onChange={(e) =>
-                    setNewItem((prev) => ({
-                      ...prev,
-                      name: e.target.value,
-                    }))
+                    setNewItem((prev) => ({ ...prev, name: e.target.value }))
                   }
                   className="w-full rounded-xl border border-slate-800 bg-[#020617] px-3 py-2 text-slate-100 placeholder:text-slate-600 focus:border-amber-500 focus:outline-none"
                 />
@@ -779,7 +1001,6 @@ export default function InventoryManagement() {
                 <label className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">
                   Department *
                 </label>
-
                 <select
                   required
                   value={newItem.department}
@@ -792,9 +1013,11 @@ export default function InventoryManagement() {
                   className="w-full rounded-xl border border-slate-800 bg-[#020617] px-3 py-2 text-slate-100 focus:border-amber-500 focus:outline-none"
                 >
                   <option value="">Select Department</option>
-                  <option value="Kitchen Inventory">Kitchen Inventory</option>
-                  <option value="Bar Inventory">Bar Inventory</option>
-                  <option value="Promo Inventory">Promo Inventory</option>
+                  {DEPARTMENTS.map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -804,7 +1027,6 @@ export default function InventoryManagement() {
                   <label className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">
                     Quantity *
                   </label>
-
                   <input
                     type="number"
                     min="0"
@@ -825,17 +1047,13 @@ export default function InventoryManagement() {
                   <label className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">
                     Unit *
                   </label>
-
                   <input
                     type="text"
                     required
                     placeholder="kg / pcs / liters"
                     value={newItem.unit}
                     onChange={(e) =>
-                      setNewItem((prev) => ({
-                        ...prev,
-                        unit: e.target.value,
-                      }))
+                      setNewItem((prev) => ({ ...prev, unit: e.target.value }))
                     }
                     className="w-full rounded-xl border border-slate-800 bg-[#020617] px-3 py-2 text-slate-100 focus:border-amber-500 focus:outline-none"
                   />
@@ -844,17 +1062,18 @@ export default function InventoryManagement() {
 
               {/* Purchases, Sold, Used, Ending */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {([
-                  { label: "Purchases", key: "purchases" },
-                  { label: "Sold", key: "sold" },
-                  { label: "Used", key: "used" },
-                  { label: "Ending", key: "ending" },
-                ] as const).map((field) => (
+                {(
+                  [
+                    { label: "Purchases", key: "purchases" },
+                    { label: "Sold", key: "sold" },
+                    { label: "Used", key: "used" },
+                    { label: "Ending", key: "ending" },
+                  ] as const
+                ).map((field) => (
                   <div key={field.key}>
                     <label className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">
                       {field.label}
                     </label>
-
                     <input
                       type="number"
                       min="0"
@@ -877,7 +1096,6 @@ export default function InventoryManagement() {
                 <label className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">
                   Remarks
                 </label>
-
                 <textarea
                   rows={3}
                   placeholder="Additional inventory notes..."
@@ -901,7 +1119,6 @@ export default function InventoryManagement() {
                 >
                   Cancel
                 </button>
-
                 <button
                   type="submit"
                   disabled={isSaving}
@@ -914,6 +1131,158 @@ export default function InventoryManagement() {
           </div>
         </div>
       )}
+
+      {isEditOpen && selectedItemForEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/80 px-4 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-[#0F172A] p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-500">
+                  Inventory Management
+                </p>
+                <h3 className="mt-0.5 font-serif text-xl font-bold text-white">
+                  Edit Inventory Item
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditOpen(false);
+                  setSelectedItemForEdit(null);
+                }}
+                aria-label="Close"
+                className="p-1.5 rounded-xl border border-slate-800 bg-slate-900 text-slate-400 hover:text-white"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="mt-5 space-y-4 text-xs">
+              <div>
+                <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-400">
+                  Item Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editData.name}
+                  onChange={(e) =>
+                    setEditData((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  className="w-full rounded-xl border border-slate-800 bg-[#020617] px-3 py-2 text-slate-100 focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-400">
+                    Department *
+                  </label>
+                  <select
+                    required
+                    value={editData.category}
+                    onChange={(e) =>
+                      setEditData((prev) => ({
+                        ...prev,
+                        category: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-xl border border-slate-800 bg-[#020617] px-3 py-2 text-slate-100 focus:border-amber-500 focus:outline-none"
+                  >
+                    {DEPARTMENTS.map((department) => (
+                      <option key={department} value={department}>
+                        {department}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-400">
+                    Unit *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editData.unit}
+                    onChange={(e) =>
+                      setEditData((prev) => ({ ...prev, unit: e.target.value }))
+                    }
+                    className="w-full rounded-xl border border-slate-800 bg-[#020617] px-3 py-2 text-slate-100 focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {(
+                  [
+                    ["Minimum Stock", "minStock", "0"],
+                    ["Maximum Stock", "maxStock", "0.01"],
+                    ["Cost per Unit", "costPerUnit", "0"],
+                  ] as const
+                ).map(([label, field, min]) => (
+                  <div key={field}>
+                    <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-400">
+                      {label} *
+                    </label>
+                    <input
+                      type="number"
+                      min={min}
+                      step="0.01"
+                      required
+                      value={editData[field]}
+                      onChange={(e) =>
+                        setEditData((prev) => ({
+                          ...prev,
+                          [field]: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-xl border border-slate-800 bg-[#020617] px-3 py-2 text-slate-100 focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                ))}
+                <div>
+                  <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-400">
+                    Supplier
+                  </label>
+                  <input
+                    type="text"
+                    value={editData.supplier}
+                    onChange={(e) =>
+                      setEditData((prev) => ({
+                        ...prev,
+                        supplier: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-xl border border-slate-800 bg-[#020617] px-3 py-2 text-slate-100 focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 border-t border-slate-800 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditOpen(false);
+                    setSelectedItemForEdit(null);
+                  }}
+                  className="px-4 py-2 rounded-xl border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-4 py-2 rounded-xl bg-amber-500 font-semibold text-slate-950 hover:bg-amber-400 shadow-md shadow-amber-500/20 disabled:opacity-50"
+                >
+                  {isSaving ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Adjust Stock Modal */}
       {isAdjustOpen && selectedItemForAdjust && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/80 px-4 backdrop-blur-sm animate-in fade-in">
           <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-[#0F172A] p-6 shadow-2xl">
@@ -927,7 +1296,9 @@ export default function InventoryManagement() {
                 </h3>
               </div>
               <button
+                type="button"
                 onClick={() => setIsAdjustOpen(false)}
+                aria-label="Close"
                 className="p-1.5 rounded-xl border border-slate-800 bg-slate-900 text-slate-400 hover:text-white"
               >
                 <X className="size-4" />
@@ -989,7 +1360,8 @@ export default function InventoryManagement() {
                 </label>
                 <input
                   type="number"
-                  min="1"
+                  min="0.01"
+                  step="0.01"
                   required
                   value={adjustData.amount}
                   onChange={(e) =>
@@ -1030,6 +1402,22 @@ export default function InventoryManagement() {
                 </select>
               </div>
 
+              {/* Note */}
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">
+                  Note (optional)
+                </label>
+                <input
+                  type="text"
+                  value={adjustData.note}
+                  onChange={(e) =>
+                    setAdjustData((prev) => ({ ...prev, note: e.target.value }))
+                  }
+                  placeholder="e.g. Delivery receipt #1234"
+                  className="w-full rounded-xl border border-slate-800 bg-[#020617] px-3 py-2 text-slate-100 placeholder:text-slate-600 focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
                 <button
                   type="button"
@@ -1041,9 +1429,9 @@ export default function InventoryManagement() {
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-4 py-2 rounded-xl bg-amber-500 font-semibold text-slate-950 hover:bg-amber-400 shadow-md shadow-amber-500/20"
+                  className="px-4 py-2 rounded-xl bg-amber-500 font-semibold text-slate-950 hover:bg-amber-400 shadow-md shadow-amber-500/20 disabled:opacity-50"
                 >
-                  Confirm Adjustment
+                  {isSaving ? "Saving..." : "Confirm Adjustment"}
                 </button>
               </div>
             </form>

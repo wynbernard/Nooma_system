@@ -154,6 +154,53 @@ try {
 
     if ($method === 'PATCH') {
         $data = readJson();
+        if (($data['action'] ?? '') === 'edit') {
+            $sku = trim((string)($data['id'] ?? ''));
+            $name = trim((string)($data['name'] ?? ''));
+            $category = trim((string)($data['category'] ?? ''));
+            $unit = trim((string)($data['unit'] ?? ''));
+            $supplier = trim((string)($data['supplier'] ?? ''));
+            $minStock = filter_var($data['minStock'] ?? null, FILTER_VALIDATE_FLOAT);
+            $maxStock = filter_var($data['maxStock'] ?? null, FILTER_VALIDATE_FLOAT);
+            $costPerUnit = filter_var($data['costPerUnit'] ?? null, FILTER_VALIDATE_FLOAT);
+
+            if (
+                $sku === '' || $name === '' || $category === '' || $unit === '' ||
+                $minStock === false || $minStock < 0 ||
+                $maxStock === false || $maxStock <= 0 || $maxStock < $minStock ||
+                $costPerUnit === false || $costPerUnit < 0
+            ) {
+                respond(422, ['success' => false, 'message' => 'Please provide valid item details and stock thresholds.']);
+            }
+
+            $item = findInventoryBySku($pdo, $sku, true);
+            if (!$item) {
+                respond(404, ['success' => false, 'message' => 'Inventory item not found.']);
+            }
+
+            $update = $pdo->prepare(
+                'UPDATE inventory
+                 SET type = :type, department = :department, item_description = :name,
+                     unit = :unit, min_stock = :min_stock, max_stock = :max_stock,
+                     cost_per_unit = :cost_per_unit, supplier = :supplier
+                 WHERE inventory_id = :inventory_id'
+            );
+            $update->execute([
+                'type' => $category,
+                'department' => $category,
+                'name' => $name,
+                'unit' => $unit,
+                'min_stock' => $minStock,
+                'max_stock' => $maxStock,
+                'cost_per_unit' => $costPerUnit,
+                'supplier' => $supplier,
+                'inventory_id' => $item['inventory_id'],
+            ]);
+
+            $updatedItem = findInventoryBySku($pdo, $sku, true);
+            respond(200, ['success' => true, 'data' => mapInventoryRow($updatedItem)]);
+        }
+
         $sku = trim((string)($data['id'] ?? ''));
         $amount = filter_var($data['amount'] ?? null, FILTER_VALIDATE_FLOAT);
         $type = $data['type'] ?? '';
