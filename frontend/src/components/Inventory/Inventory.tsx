@@ -72,11 +72,18 @@ type InventoryApiResponse<T> = {
 type SyncResult = {
   date: string;
   synced: number;
+  syncedAt?: string;
   menu?: number;
   ingredientsDeducted?: number;
   unitWarnings?: string[];
   skipped?: number;
   byDepartment?: Record<string, number>;
+};
+
+type SyncStatus = {
+  date: string;
+  synced: boolean;
+  syncedAt: string | null;
 };
 
 const DEPARTMENTS = [
@@ -153,6 +160,19 @@ async function storeHubSyncRequest(date: string): Promise<SyncResult> {
   return result.data;
 }
 
+async function storeHubSyncStatusRequest(date: string): Promise<SyncStatus> {
+  const response = await fetch(
+    `../backend/inventory/storehub_sync.php?date=${encodeURIComponent(date)}`,
+    { credentials: "same-origin" },
+  );
+  const result = (await response.json()) as InventoryApiResponse<SyncStatus>;
+
+  if (!response.ok || !result.success || !result.data) {
+    throw new Error(result.message || "Unable to check sync status.");
+  }
+  return result.data;
+}
+
 /* -------------------------------------------------------------------------- */
 /*                          MAIN INVENTORY COMPONENT                          */
 /* -------------------------------------------------------------------------- */
@@ -165,6 +185,14 @@ export default function InventoryManagement() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncDate, setSyncDate] = useState(todayISO());
+  const [syncStatus, setSyncStatus] = useState<
+    | {
+        date: string;
+        state: "checking" | "synced" | "not-synced";
+      }
+    | { date: string; state: "error"; message: string }
+  >({ date: todayISO(), state: "checking" });
+  const [syncStatusReload, setSyncStatusReload] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
@@ -225,6 +253,35 @@ export default function InventoryManagement() {
 
     return () => controller.abort();
   }, [reloadToken]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const requestedDate = syncDate;
+
+    storeHubSyncStatusRequest(requestedDate)
+      .then((status) => {
+        if (!controller.signal.aborted) {
+          setSyncStatus({
+            date: status.date,
+            state: status.synced ? "synced" : "not-synced",
+          });
+        }
+      })
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) {
+          setSyncStatus({
+            date: requestedDate,
+            state: "error",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Unable to check sync status.",
+          });
+        }
+      });
+
+    return () => controller.abort();
+  }, [syncDate, syncStatusReload]);
 
   // Clear any pending toast timer on unmount
   useEffect(() => {
@@ -450,6 +507,7 @@ export default function InventoryManagement() {
     try {
       const result = await storeHubSyncRequest(syncDate);
       reloadInventory();
+      setSyncStatusReload((value) => value + 1);
       const menuCount = result.menu ?? 0;
       const ingredientsDeducted = result.ingredientsDeducted ?? 0;
       const unitWarnings = result.unitWarnings ?? [];
@@ -528,6 +586,9 @@ export default function InventoryManagement() {
     setIsAdjustOpen(true);
   };
 
+  const currentSyncStatus =
+    syncStatus.date === syncDate ? syncStatus.state : "checking";
+
   /* --------------------------------- RENDER --------------------------------- */
 
   return (
@@ -579,7 +640,7 @@ export default function InventoryManagement() {
             </button>
 
             {/* StoreHub sync: date + button */}
-            <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-1 pl-3">
+            <div className="inline-flex flex-wrap items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-1 pl-3">
               <label htmlFor="sync-date" className="sr-only">
                 StoreHub sync date
               </label>
@@ -592,6 +653,41 @@ export default function InventoryManagement() {
                 disabled={isSyncing}
                 className="bg-transparent text-xs text-emerald-200 focus:outline-none [color-scheme:dark] disabled:opacity-50"
               />
+              <span
+                title={
+                  currentSyncStatus === "error" && "message" in syncStatus
+                    ? syncStatus.message
+                    : undefined
+                }
+                className={cn(
+                  "inline-flex items-center gap-1 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-semibold",
+                  currentSyncStatus === "synced" &&
+                    "bg-emerald-500/20 text-emerald-200",
+                  currentSyncStatus === "not-synced" &&
+                    "bg-slate-800/80 text-slate-400",
+                  currentSyncStatus === "checking" &&
+                    "bg-slate-800/80 text-slate-400",
+                  isSyncing && "bg-blue-500/15 text-blue-200",
+                  currentSyncStatus === "error" && "bg-red-500/15 text-red-300",
+                )}
+              >
+                {isSyncing && "Syncing..."}
+                {!isSyncing && currentSyncStatus === "synced" && (
+                  <>
+                    <CheckCircle2 className="size-3" />
+                    Already synced
+                  </>
+                )}
+                {!isSyncing &&
+                  currentSyncStatus === "not-synced" &&
+                  "Not synced"}
+                {!isSyncing &&
+                  currentSyncStatus === "checking" &&
+                  "Checking..."}
+                {!isSyncing &&
+                  currentSyncStatus === "error" &&
+                  "Status unavailable"}
+              </span>
               <button
                 onClick={handleSyncStoreHub}
                 disabled={isSyncing || !syncDate}
@@ -1157,7 +1253,10 @@ export default function InventoryManagement() {
               </button>
             </div>
 
-            <form onSubmit={handleEditSubmit} className="mt-5 space-y-4 text-xs">
+            <form
+              onSubmit={handleEditSubmit}
+              className="mt-5 space-y-4 text-xs"
+            >
               <div>
                 <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-400">
                   Item Name *

@@ -18,6 +18,7 @@ declare(strict_types=1);
  *
  * Requires once:
  *   Run backend/inventory/storehub_usage_migrate.sql to create the idempotency ledger.
+ *   Run backend/inventory/storehub_sync_runs_migrate.sql to track completed dates.
  *
  *   Run backend/inventory/menu_sync_migrate.sql once to add the StoreHub
  *   product id and its unique key to an existing menu table.
@@ -29,8 +30,9 @@ declare(strict_types=1);
 
 header('Content-Type: application/json');
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+if (!in_array($_SERVER['REQUEST_METHOD'] ?? '', ['GET', 'POST'], true)) {
     http_response_code(405);
+    header('Allow: GET, POST');
     echo json_encode(['success' => false, 'message' => 'Method not allowed.']);
     exit;
 }
@@ -220,8 +222,13 @@ function convertRecipeQuantity(float $quantity, string $recipeUnit, string $stoc
 /*  Main                                                                       */
 /* -------------------------------------------------------------------------- */
 try {
-    $input = json_decode((string) file_get_contents('php://input'), true);
-    $input = is_array($input) ? $input : [];
+    $method = $_SERVER['REQUEST_METHOD'] ?? 'POST';
+    if ($method === 'GET') {
+        $input = $_GET;
+    } else {
+        $input = json_decode((string) file_get_contents('php://input'), true);
+        $input = is_array($input) ? $input : [];
+    }
 
     $tz    = new DateTimeZone(BUSINESS_TIMEZONE);
     $today = (new DateTimeImmutable('now', $tz))->format('Y-m-d');
@@ -238,6 +245,23 @@ try {
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ]
     );
+
+    if ($method === 'GET') {
+        $stmt = $pdo->prepare(
+            'SELECT synced_at FROM storehub_sync_runs WHERE sync_date = :date'
+        );
+        $stmt->execute([':date' => $date]);
+        $syncedAt = $stmt->fetchColumn();
+        echo json_encode([
+            'success' => true,
+            'data' => [
+                'date' => $date,
+                'synced' => $syncedAt !== false,
+                'syncedAt' => $syncedAt !== false ? $syncedAt : null,
+            ],
+        ]);
+        exit;
+    }
 
     // StoreHub timestamps are UTC, so fetch one extra day on each side,
     // then keep ONLY transactions whose date equals the sync date.
@@ -480,6 +504,24 @@ try {
         $ingredientsDeducted++;
     }
 
+    $saveSyncRun = $pdo->prepare(
+        'INSERT INTO storehub_sync_runs
+            (sync_date, synced_at, bar_items, menu_items, ingredients_deducted)
+         VALUES (:date, NOW(), :bar_items, :menu_items, :ingredients_deducted)
+         ON DUPLICATE KEY UPDATE
+            synced_at = VALUES(synced_at),
+            bar_items = VALUES(bar_items),
+            menu_items = VALUES(menu_items),
+            ingredients_deducted = VALUES(ingredients_deducted)'
+    );
+    $saveSyncRun->execute([
+        ':date' => $date,
+        ':bar_items' => $synced,
+        ':menu_items' => $menuSynced,
+        ':ingredients_deducted' => $ingredientsDeducted,
+    ]);
+    $syncedAt = (new DateTimeImmutable('now', $tz))->format('Y-m-d H:i:s');
+
     $pdo->commit();
 
     echo json_encode([
@@ -490,6 +532,7 @@ try {
             'menu'         => $menuSynced, // kitchen / promo items saved in menu
             'ingredientsDeducted' => $ingredientsDeducted,
             'unitWarnings' => $unitWarnings,
+            'syncedAt' => $syncedAt,
             'skipped'      => $skipped,    // transactions on other dates, not saved
             'byDepartment' => $byDept,
         ],
