@@ -237,7 +237,7 @@ try {
     $syncDate = parseLocalDate($date, $tz);
 
     $pdo = new PDO(
-        sprintf('mysql:host=%s;dbname=%s;charset=utf8mb4', $config['db_host'] ?? 'localhost', $config['db_name'] ?? 'inventory'),
+        sprintf('mysql:host=%s;dbname=%s;charset=utf8mb4', $config['db_host'] ?? 'localhost', $config['db_name'] ?? 'pointly_pos'),
         $config['db_user'] ?? 'DB_USER',
         $config['db_pass'] ?? 'DB_PASS',
         [

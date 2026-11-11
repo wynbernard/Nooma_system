@@ -89,7 +89,7 @@ try {
     $config = is_file(__DIR__ . '/../config/storehub.php') ? require __DIR__ . '/../config/storehub.php' : [];
 
     $pdo = new PDO(
-        sprintf('mysql:host=%s;dbname=%s;charset=utf8mb4', $config['db_host'] ?? 'localhost', $config['db_name'] ?? 'inventory'),
+        sprintf('mysql:host=%s;dbname=%s;charset=utf8mb4', $config['db_host'] ?? 'localhost', $config['db_name'] ?? 'pointly_pos'),
         $config['db_user'] ?? 'DB_USER',
         $config['db_pass'] ?? 'DB_PASS',
         [

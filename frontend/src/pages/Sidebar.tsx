@@ -8,9 +8,15 @@ import {
   LogOut,
   Sparkles,
   ChevronLeft,
+  ChevronDown,
   Menu,
-  Clock,
-  DollarSign,
+  BadgeDollarSign,
+  Receipt,
+  ShoppingCart,
+  TrendingUp,
+  Store,
+  Tag,
+  Gift,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +30,16 @@ type SidebarProps = {
   onLogout: () => void;
 };
 
-const navItems = [
+const salesSubItems = [
+  { id: "sales-pos", label: "POS Terminal", icon: ShoppingCart },
+  { id: "sales-orders", label: "Orders History", icon: Receipt },
+  { id: "sales-analytics", label: "Sales Reports", icon: TrendingUp },
+  { id: "sales-register", label: "Cash Register & Shifts", icon: Store },
+  { id: "sales-promos", label: "Discounts & Promos", icon: Tag },
+  { id: "sales-loyalty", label: "Gift Cards & Loyalty", icon: Gift },
+];
+
+const mainNavItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   {
     id: "reservations",
@@ -34,7 +49,6 @@ const navItems = [
   },
   { id: "tables", label: "Restaurant Tables", icon: Utensils },
   { id: "customers", label: "Customers", icon: Users },
-  { id: "settings", label: "Settings", icon: Settings },
 ];
 
 export default function Sidebar({
@@ -46,6 +60,13 @@ export default function Sidebar({
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Auto-expand menus if a sub-tab belonging to them is active
+  const isSalesActive = salesSubItems.some((item) =>
+    activeTab.startsWith(item.id),
+  );
+
+  const [salesOpen, setSalesOpen] = useState(isSalesActive);
 
   const toggleSidebar = () => setCollapsed(!collapsed);
 
@@ -122,7 +143,7 @@ export default function Sidebar({
 
         {/* Navigation Links */}
         <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
-          {navItems.map((item) => {
+          {mainNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
 
@@ -163,6 +184,109 @@ export default function Sidebar({
               </button>
             );
           })}
+
+          {/* Sales Management Dropdown */}
+          <div className="space-y-1">
+            <button
+              onClick={() => {
+                if (collapsed) {
+                  setCollapsed(false);
+                  setSalesOpen(true);
+                } else {
+                  setSalesOpen(!salesOpen);
+                }
+              }}
+              className={cn(
+                "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group",
+                isSalesActive
+                  ? "text-amber-400 bg-neutral-800/40"
+                  : "text-neutral-400 hover:text-white hover:bg-neutral-800/60",
+              )}
+              title={collapsed ? "Sales Management" : undefined}
+            >
+              <div className="flex items-center gap-3">
+                <BadgeDollarSign
+                  className={cn(
+                    "size-5 shrink-0",
+                    isSalesActive
+                      ? "text-amber-400"
+                      : "text-neutral-400 group-hover:text-white",
+                  )}
+                />
+                {!collapsed && (
+                  <span className="truncate">Sales Management</span>
+                )}
+              </div>
+              {!collapsed && (
+                <ChevronDown
+                  className={cn(
+                    "size-4 text-neutral-400 transition-transform duration-200",
+                    salesOpen && "rotate-180",
+                  )}
+                />
+              )}
+            </button>
+
+            {!collapsed && salesOpen && (
+              <div className="pl-6 space-y-1">
+                {salesSubItems.map((subItem) => {
+                  const SubIcon = subItem.icon;
+                  const isSubActive = activeTab === subItem.id;
+
+                  return (
+                    <button
+                      key={subItem.id}
+                      onClick={() => {
+                        onTabChange(subItem.id);
+                        setMobileOpen(false);
+                      }}
+                      className={cn(
+                        "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-colors group",
+                        isSubActive
+                          ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                          : "text-neutral-400 hover:text-white hover:bg-neutral-800/40",
+                      )}
+                    >
+                      <SubIcon
+                        className={cn(
+                          "size-4 shrink-0",
+                          isSubActive
+                            ? "text-amber-400"
+                            : "text-neutral-400 group-hover:text-white",
+                        )}
+                      />
+                      <span className="truncate">{subItem.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Settings Nav Item */}
+          <button
+            onClick={() => {
+              onTabChange("settings");
+              setMobileOpen(false);
+            }}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group relative",
+              activeTab === "settings"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-neutral-400 hover:text-white hover:bg-neutral-800/60",
+            )}
+            title={collapsed ? "Settings" : undefined}
+          >
+            <Settings
+              className={cn(
+                "size-5 shrink-0",
+                activeTab === "settings"
+                  ? "text-primary-foreground"
+                  : "text-neutral-400 group-hover:text-white",
+              )}
+            />
+            {!collapsed && <span className="truncate">Settings</span>}
+          </button>
         </nav>
 
         {/* User Session Footer */}

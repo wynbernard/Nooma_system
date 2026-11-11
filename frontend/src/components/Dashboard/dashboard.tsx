@@ -19,6 +19,13 @@ import {
   LogOut,
   Bell,
   Filter,
+  BadgeDollarSign,
+  ChevronDown,
+  ShoppingCart,
+  Receipt,
+  Store,
+  Tag,
+  Gift,
 } from "lucide-react";
 import InventoryManagement from "../Inventory/Inventory";
 import MenuPage from "../Menu/menu";
@@ -185,6 +192,8 @@ function Input({ className = "", ...props }) {
 /*                            INLINE NAVY SIDEBAR                             */
 /* -------------------------------------------------------------------------- */
 
+const salesNavItems = [{ id: "sales", label: "Sales", icon: ShoppingCart }];
+
 function NavySidebar({
   activeTab,
   onTabChange,
@@ -198,6 +207,12 @@ function NavySidebar({
   userRole: string;
   onLogout: () => void;
 }) {
+  const [salesOpen, setSalesOpen] = useState(() =>
+    salesNavItems.some((item) => activeTab.startsWith(item.id)),
+  );
+  const isSalesActive = salesNavItems.some((item) =>
+    activeTab.startsWith(item.id),
+  );
   const navItems = [
     { id: "dashboard", label: "Overview", icon: LayoutDashboard },
     { id: "Inventory", label: "Inventory", icon: Boxes },
@@ -266,6 +281,69 @@ function NavySidebar({
             </button>
           );
         })}
+        <div className="space-y-1">
+          <button
+            type="button"
+            onClick={() => setSalesOpen((open) => !open)}
+            aria-expanded={salesOpen}
+            className={cn(
+              "w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all group",
+              isSalesActive
+                ? "bg-slate-800/90 text-amber-400 border border-slate-700/80 shadow-md"
+                : "text-slate-400 hover:bg-slate-800/40 hover:text-slate-200",
+            )}
+          >
+            <span className="flex items-center gap-3">
+              <BadgeDollarSign
+                className={cn(
+                  "size-4 transition-colors",
+                  isSalesActive
+                    ? "text-amber-400"
+                    : "text-slate-500 group-hover:text-slate-300",
+                )}
+              />
+              <span>Sales Management</span>
+            </span>
+            <ChevronDown
+              className={cn(
+                "size-4 transition-transform",
+                salesOpen && "rotate-180",
+              )}
+            />
+          </button>
+          {salesOpen && (
+            <div className="space-y-1 pl-4">
+              {salesNavItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => onTabChange(item.id)}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-medium transition-all group",
+                      isActive
+                        ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                        : "text-slate-400 hover:bg-slate-800/40 hover:text-slate-200",
+                    )}
+                  >
+                    <Icon
+                      className={cn(
+                        "size-4 shrink-0",
+                        isActive
+                          ? "text-amber-400"
+                          : "text-slate-500 group-hover:text-slate-300",
+                      )}
+                    />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* User Profile / Footer */}
@@ -605,26 +683,27 @@ export default function Dashboard({
           {activeTab !== "dashboard" &&
             activeTab !== "Inventory" &&
             activeTab !== "Menu" && (
-            <div className="flex flex-col items-center justify-center min-h-[400px] border border-dashed border-slate-800 rounded-3xl p-8 bg-slate-900/40 text-center">
-              <div className="p-4 rounded-full bg-slate-800/80 text-amber-400 mb-4 border border-slate-700">
-                <Utensils className="size-8" />
+              <div className="flex flex-col items-center justify-center min-h-[400px] border border-dashed border-slate-800 rounded-3xl p-8 bg-slate-900/40 text-center">
+                <div className="p-4 rounded-full bg-slate-800/80 text-amber-400 mb-4 border border-slate-700">
+                  <Utensils className="size-8" />
+                </div>
+                <h3 className="font-serif text-xl text-white">
+                  {salesNavItems.find((item) => item.id === activeTab)?.label ??
+                    `${activeTab.charAt(0).toUpperCase()}${activeTab.slice(1)} View`}
+                </h3>
+                <p className="text-xs text-slate-400 max-w-sm mt-1">
+                  This section is active in the navigation. The table booking
+                  and reporting views are integrated under the Navy theme.
+                </p>
+                <Button
+                  variant="outline"
+                  className="mt-6"
+                  onClick={() => setActiveTab("dashboard")}
+                >
+                  Back to Dashboard
+                </Button>
               </div>
-              <h3 className="font-serif text-xl text-white">
-                {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} View
-              </h3>
-              <p className="text-xs text-slate-400 max-w-sm mt-1">
-                This section is active in the navigation. The table booking and
-                reporting views are integrated under the Navy theme.
-              </p>
-              <Button
-                variant="outline"
-                className="mt-6"
-                onClick={() => setActiveTab("dashboard")}
-              >
-                Back to Dashboard
-              </Button>
-            </div>
-          )}
+            )}
         </div>
       </main>
     </div>

@@ -1,6 +1,6 @@
 <?php
 $host = 'localhost';
-$db   = 'inventory';
+$db   = 'pointly_pos';
 $user = 'root';
 $pass = '';
 $charset = 'utf8mb4';
