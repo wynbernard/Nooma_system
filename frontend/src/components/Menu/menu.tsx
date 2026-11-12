@@ -11,6 +11,39 @@ import {
   Sparkles,
   CheckCircle2,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 function cn(...classes: (string | false | null | undefined)[]) {
   return classes.filter(Boolean).join(" ");
@@ -374,23 +407,27 @@ export default function MenuPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <button
+            <Button
+              type="button"
+              variant="outline"
               onClick={handleExportCsv}
               disabled={visibleItems.length === 0}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/80 px-4 py-2.5 text-xs font-medium text-slate-300 transition-all hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-xl border-slate-800 bg-slate-900/80 text-xs text-slate-300 hover:bg-slate-800 hover:text-white"
             >
               <Download className="size-3.5 text-slate-400" /> Export CSV
-            </button>
-            <button
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
               onClick={reload}
               disabled={isLoading}
-              className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 disabled:opacity-50"
+              className="rounded-xl border-emerald-500/30 bg-emerald-500/10 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300"
             >
               <RefreshCw
                 className={cn("size-3.5", isLoading && "animate-spin")}
               />
               {isLoading ? "Loading..." : "Refresh menu"}
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -414,148 +451,184 @@ export default function MenuPage() {
               tone: missingCount > 0 ? "text-amber-400" : "text-emerald-400",
             },
           ].map((stat) => (
-            <div
+            <Card
               key={stat.label}
-              className="rounded-2xl border border-slate-800/80 bg-[#0F172A]/90 p-5 shadow-xl"
+              className="rounded-2xl border-slate-800/80 bg-[#0F172A]/90 py-0 text-slate-100 shadow-xl"
             >
-              <p className="text-xs font-semibold text-slate-400">
-                {stat.label}
-              </p>
-              <p
-                className={cn(
-                  "mt-2 text-2xl font-bold font-serif tracking-tight",
-                  stat.tone,
-                )}
-              >
-                {stat.value}
-              </p>
-            </div>
+              <CardContent className="gap-0 p-5">
+                <p className="text-xs font-semibold text-slate-400">
+                  {stat.label}
+                </p>
+                <p
+                  className={cn(
+                    "mt-2 text-2xl font-bold font-serif tracking-tight",
+                    stat.tone,
+                  )}
+                >
+                  {stat.value}
+                </p>
+              </CardContent>
+            </Card>
           ))}
         </div>
 
         {/* Filters */}
-        <div className="rounded-2xl border border-slate-800/80 bg-[#0F172A]/90 p-4 shadow-xl space-y-4">
-          <div className="flex flex-col lg:flex-row gap-4 lg:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by menu name..."
-                className="w-full rounded-xl border border-slate-800 bg-[#020617] pl-10 pr-4 py-2.5 text-xs text-slate-200 placeholder:text-slate-500 focus:border-amber-500/80 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-              />
+        <Card className="gap-0 rounded-2xl border-slate-800/80 bg-[#0F172A]/90 py-0 text-slate-100 shadow-xl">
+          <CardContent className="space-y-4 p-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
+                <Input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by menu name..."
+                  className="h-10 rounded-xl border-slate-800 bg-[#020617] pl-10 text-xs text-slate-200 placeholder:text-slate-500 focus-visible:border-amber-500/80 focus-visible:ring-amber-500/20"
+                />
+              </div>
+
+              <Select
+                value={sortBy}
+                onValueChange={(value) => {
+                  if (
+                    value === "name" ||
+                    value === "price-asc" ||
+                    value === "price-desc"
+                  ) {
+                    setSortBy(value);
+                  }
+                }}
+              >
+                <SelectTrigger
+                  aria-label="Sort menu"
+                  className="w-full rounded-xl border-slate-800 bg-[#020617] text-xs text-slate-200 lg:w-56"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name">Sort: Name</SelectItem>
+                  <SelectItem value="price-asc">
+                    Sort: Price, low to high
+                  </SelectItem>
+                  <SelectItem value="price-desc">
+                    Sort: Price, high to low
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-              aria-label="Sort menu"
-              className="rounded-xl border border-slate-800 bg-[#020617] px-3 py-2.5 text-xs text-slate-200 focus:border-amber-500/80 focus:outline-none"
-            >
-              <option value="name">Sort: Name</option>
-              <option value="price-asc">Sort: Price, low to high</option>
-              <option value="price-desc">Sort: Price, high to low</option>
-            </select>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-1.5">
-            {["All", ...CATEGORIES].map((cat) => {
-              const isActive = category === cat;
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setCategory(cat)}
-                  className={cn(
-                    "px-3.5 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-all border",
-                    isActive
-                      ? "bg-slate-800 text-amber-400 border-slate-700 shadow-md font-semibold"
-                      : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 border-transparent",
-                  )}
-                >
-                  {cat}
-                </button>
-              );
-            })}
-            <button
-              onClick={() => setMissingOnly((v) => !v)}
-              className={cn(
-                "ml-auto px-3.5 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-all border",
-                missingOnly
-                  ? "bg-amber-500/10 text-amber-300 border-amber-500/40 font-semibold"
-                  : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 border-slate-800",
-              )}
-            >
-              Missing ingredients only
-            </button>
-          </div>
-        </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {["All", ...CATEGORIES].map((cat) => {
+                const isActive = category === cat;
+                return (
+                  <Button
+                    type="button"
+                    key={cat}
+                    onClick={() => setCategory(cat)}
+                    variant={isActive ? "secondary" : "ghost"}
+                    aria-pressed={isActive}
+                    className={cn(
+                      "h-9 rounded-xl border px-3.5 text-xs font-medium whitespace-nowrap",
+                      isActive
+                        ? "border-slate-700 bg-slate-800 font-semibold text-amber-400 hover:bg-slate-700"
+                        : "border-transparent text-slate-400 hover:bg-slate-800/50 hover:text-slate-200",
+                    )}
+                  >
+                    {cat}
+                  </Button>
+                );
+              })}
+              <Button
+                type="button"
+                onClick={() => setMissingOnly((v) => !v)}
+                variant={missingOnly ? "secondary" : "outline"}
+                aria-pressed={missingOnly}
+                className={cn(
+                  "ml-auto h-9 rounded-xl px-3.5 text-xs font-medium whitespace-nowrap",
+                  missingOnly
+                    ? "border-amber-500/40 bg-amber-500/10 font-semibold text-amber-300 hover:bg-amber-500/20"
+                    : "border-slate-800 text-slate-400 hover:bg-slate-800/50 hover:text-slate-200",
+                )}
+              >
+                Missing ingredients only
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Menu table */}
-        <div className="rounded-2xl border border-slate-800/80 bg-[#0F172A]/90 shadow-xl overflow-hidden">
-          <div className="p-5 border-b border-slate-800">
-            <h2 className="text-base font-serif font-semibold text-white">
+        <Card className="gap-0 rounded-2xl border-slate-800/80 bg-[#0F172A]/90 py-0 text-slate-100 shadow-xl">
+          <CardHeader className="border-b border-slate-800 p-5">
+            <CardTitle className="font-serif text-base font-semibold text-white">
               Menu items
-            </h2>
+            </CardTitle>
             <p className="text-xs text-slate-400">
               Showing {visibleItems.length} of {items.length} items
             </p>
-          </div>
+          </CardHeader>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-slate-800 bg-[#020617]/60 text-[10px] uppercase tracking-wider text-slate-400">
-                <tr>
-                  <th className="py-3.5 px-4 font-semibold">Menu name</th>
-                  <th className="py-3.5 px-4 font-semibold">Category</th>
-                  <th className="py-3.5 px-4 font-semibold text-right">
+          <CardContent className="p-0">
+            <Table className="text-left text-xs">
+              <TableHeader className="border-b border-slate-800 bg-[#020617]/60 text-[10px] uppercase tracking-wider text-slate-400 [&_tr]:border-slate-800">
+                <TableRow>
+                  <TableHead className="h-auto px-4 py-3.5 font-semibold text-slate-400">
+                    Menu name
+                  </TableHead>
+                  <TableHead className="h-auto px-4 py-3.5 font-semibold text-slate-400">
+                    Category
+                  </TableHead>
+                  <TableHead className="h-auto px-4 py-3.5 text-right font-semibold text-slate-400">
                     Selling price
-                  </th>
-                  <th className="py-3.5 px-4 font-semibold">Ingredients</th>
-                  <th className="py-3.5 px-4 font-semibold text-right">
+                  </TableHead>
+                  <TableHead className="h-auto px-4 py-3.5 font-semibold text-slate-400">
+                    Ingredients
+                  </TableHead>
+                  <TableHead className="h-auto px-4 py-3.5 text-right font-semibold text-slate-400">
                     Recipe cost
-                  </th>
-                  <th className="py-3.5 px-4 font-semibold text-right">
+                  </TableHead>
+                  <TableHead className="h-auto px-4 py-3.5 text-right font-semibold text-slate-400">
                     Margin
-                  </th>
-                  <th className="py-3.5 px-4 font-semibold text-right">
+                  </TableHead>
+                  <TableHead className="h-auto px-4 py-3.5 text-right font-semibold text-slate-400">
                     Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60">
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="divide-y divide-slate-800/60 [&_tr]:border-slate-800/60">
                 {isLoading ? (
-                  <tr>
-                    <td
+                  <TableRow>
+                    <TableCell
                       colSpan={7}
                       className="py-12 text-center text-slate-400"
                     >
                       Loading menu...
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : loadError ? (
-                  <tr>
-                    <td colSpan={7} className="py-12 text-center text-red-300">
+                  <TableRow>
+                    <TableCell colSpan={7} className="py-12 text-center text-red-300">
                       {loadError}{" "}
-                      <button
+                      <Button
+                        type="button"
+                        variant="link"
                         onClick={reload}
-                        className="ml-2 text-amber-300 underline underline-offset-2"
+                        className="ml-2 h-auto p-0 text-amber-300"
                       >
                         Retry
-                      </button>
-                    </td>
-                  </tr>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
                 ) : visibleItems.length === 0 ? (
-                  <tr>
-                    <td
+                  <TableRow>
+                    <TableCell
                       colSpan={7}
                       className="py-12 text-center text-slate-500"
                     >
                       {items.length === 0
                         ? "No menu items yet. Sync StoreHub on the inventory page to add them."
                         : "No menu items match your filters."}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   visibleItems.map((item) => {
                     const margin =
@@ -566,44 +639,44 @@ export default function MenuPage() {
                         : null;
 
                     return (
-                      <tr
+                      <TableRow
                         key={item.id}
-                        className="hover:bg-slate-800/40 transition-colors"
+                        className="border-slate-800/60 transition-colors hover:bg-slate-800/40"
                       >
-                        <td className="py-4 px-4 font-serif font-semibold text-slate-100">
+                        <TableCell className="px-4 py-4 font-serif font-semibold text-slate-100">
                           {item.name}
-                        </td>
-                        <td className="py-4 px-4">
-                          <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800/80 border border-slate-700/50 px-2.5 py-1 text-[11px] text-slate-300">
+                        </TableCell>
+                        <TableCell className="px-4 py-4">
+                          <Badge variant="outline" className="h-auto gap-1.5 rounded-lg border-slate-700/50 bg-slate-800/80 px-2.5 py-1 text-[11px] text-slate-300">
                             {item.category === "Promo" ? (
                               <Sparkles className="size-3.5" />
                             ) : (
                               <ChefHat className="size-3.5" />
                             )}
                             {item.category}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4 text-right font-mono font-semibold text-amber-400">
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="px-4 py-4 text-right font-mono font-semibold text-amber-400">
                           {peso(item.price)}
-                        </td>
-                        <td className="py-4 px-4">
+                        </TableCell>
+                        <TableCell className="px-4 py-4">
                           {item.ingredientCount === 0 ? (
-                            <span className="rounded-full border border-amber-700/50 bg-amber-950/80 px-2.5 py-1 text-[10px] font-semibold text-amber-300">
+                          <Badge variant="outline" className="h-auto rounded-full border-amber-700/50 bg-amber-950/80 px-2.5 py-1 text-[10px] font-semibold text-amber-300">
                               No ingredients
-                            </span>
+                          </Badge>
                           ) : (
                             <span className="text-slate-300">
                               {item.ingredientCount} ingredient
                               {item.ingredientCount === 1 ? "" : "s"}
                             </span>
                           )}
-                        </td>
-                        <td className="py-4 px-4 text-right font-mono text-slate-300">
+                        </TableCell>
+                        <TableCell className="px-4 py-4 text-right font-mono text-slate-300">
                           {item.recipeCost > 0 ? peso(item.recipeCost) : "—"}
-                        </td>
-                        <td
+                        </TableCell>
+                        <TableCell
                           className={cn(
-                            "py-4 px-4 text-right font-mono",
+                            "px-4 py-4 text-right font-mono",
                             margin === null
                               ? "text-slate-500"
                               : margin < 0
@@ -612,97 +685,117 @@ export default function MenuPage() {
                           )}
                         >
                           {margin === null ? "—" : `${margin}%`}
-                        </td>
-                        <td className="py-4 px-4 text-right">
-                          <button
+                        </TableCell>
+                        <TableCell className="px-4 py-4 text-right">
+                          <Button
+                            type="button"
+                            variant="outline"
                             onClick={() => openIngredients(item)}
-                            className="px-2.5 py-1 rounded-lg border border-slate-700/80 bg-slate-800 text-[11px] font-medium text-amber-300 hover:bg-slate-700 transition-colors"
+                            className="h-8 rounded-lg border-slate-700/80 bg-slate-800 px-2.5 text-[11px] font-medium text-amber-300 hover:bg-slate-700 hover:text-amber-200"
                           >
                             {item.ingredientCount === 0
                               ? "Add ingredients"
                               : "Ingredients"}
-                          </button>
-                        </td>
-                      </tr>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
                     );
                   })
                 )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Ingredients modal */}
-      {activeItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/80 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-800 bg-[#0F172A] p-6 shadow-2xl">
+      <Dialog
+        open={activeItem !== null}
+        onOpenChange={(open) => {
+          if (!open) closeIngredients();
+        }}
+      >
+        {activeItem && (
+          <DialogContent
+            showCloseButton={false}
+            className="max-h-[90vh] max-w-2xl overflow-y-auto rounded-2xl border-slate-800 bg-[#0F172A] p-6 text-slate-100 shadow-2xl sm:max-w-2xl"
+          >
             <div className="flex items-start justify-between border-b border-slate-800 pb-4">
-              <div>
+              <DialogHeader className="gap-1">
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-500">
                   Ingredients
                 </p>
-                <h3 className="mt-0.5 font-serif text-xl font-bold text-white">
+                <DialogTitle className="font-serif text-xl font-bold text-white">
                   {activeItem.name}
-                </h3>
-                <p className="mt-1 text-xs text-slate-400">
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-400">
                   {activeItem.category} · Selling price {peso(activeItem.price)}
-                </p>
-              </div>
-              <button
+                </DialogDescription>
+              </DialogHeader>
+              <Button
                 type="button"
                 onClick={closeIngredients}
                 aria-label="Close"
-                className="p-1.5 rounded-xl border border-slate-800 bg-slate-900 text-slate-400 hover:text-white"
+                variant="outline"
+                size="icon-sm"
+                className="rounded-xl border-slate-800 bg-slate-900 text-slate-400 hover:text-white"
               >
                 <X className="size-4" />
-              </button>
+              </Button>
             </div>
 
             {/* Current ingredients */}
-            <div className="mt-5 overflow-x-auto rounded-xl border border-slate-800">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-[#020617]/60 text-[10px] uppercase tracking-wider text-slate-400">
-                  <tr>
-                    <th className="py-3 px-3 font-semibold">Inventory item</th>
-                    <th className="py-3 px-3 font-semibold">Quantity used</th>
-                    <th className="py-3 px-3 font-semibold">Unit</th>
-                    <th className="py-3 px-3 font-semibold text-right">Cost</th>
-                    <th className="py-3 px-3" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60">
+            <div className="mt-5 rounded-xl border border-slate-800">
+              <Table className="text-left text-xs">
+                <TableHeader className="bg-[#020617]/60 text-[10px] uppercase tracking-wider text-slate-400 [&_tr]:border-slate-800">
+                  <TableRow>
+                    <TableHead className="h-auto px-3 py-3 font-semibold text-slate-400">
+                      Inventory item
+                    </TableHead>
+                    <TableHead className="h-auto px-3 py-3 font-semibold text-slate-400">
+                      Quantity used
+                    </TableHead>
+                    <TableHead className="h-auto px-3 py-3 font-semibold text-slate-400">
+                      Unit
+                    </TableHead>
+                    <TableHead className="h-auto px-3 py-3 text-right font-semibold text-slate-400">
+                      Cost
+                    </TableHead>
+                    <TableHead className="h-auto px-3 py-3" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="divide-y divide-slate-800/60 [&_tr]:border-slate-800/60">
                   {isIngredientsLoading ? (
-                    <tr>
-                      <td
+                    <TableRow>
+                      <TableCell
                         colSpan={5}
                         className="py-8 text-center text-slate-400"
                       >
                         Loading ingredients...
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ) : ingredients.length === 0 ? (
-                    <tr>
-                      <td
+                    <TableRow>
+                      <TableCell
                         colSpan={5}
                         className="py-8 text-center text-slate-500"
                       >
                         No ingredients yet. Add the first one below.
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ) : (
                     ingredients.map((ingredient) => (
-                      <tr key={ingredient.id}>
-                        <td className="py-3 px-3">
+                      <TableRow key={ingredient.id}>
+                        <TableCell className="px-3 py-3">
                           <span className="font-semibold text-slate-100">
                             {ingredient.name}
                           </span>
                           <span className="block text-[10px] text-slate-500">
                             {ingredient.department}
                           </span>
-                        </td>
-                        <td className="py-3 px-3">
-                          <input
+                        </TableCell>
+                        <TableCell className="px-3 py-3">
+                          <Input
                             key={`${ingredient.id}-${ingredient.quantityUsed}`}
                             type="number"
                             min="0"
@@ -716,36 +809,38 @@ export default function MenuPage() {
                               if (e.key === "Enter") e.currentTarget.blur();
                             }}
                             aria-label={`Quantity of ${ingredient.name}`}
-                            className="w-24 rounded-lg border border-slate-800 bg-[#020617] px-2 py-1.5 text-slate-100 focus:border-amber-500 focus:outline-none"
+                            className="h-9 w-24 rounded-lg border-slate-800 bg-[#020617] px-2 text-slate-100 focus-visible:border-amber-500"
                           />
-                        </td>
-                        <td className="py-3 px-3 text-slate-300">
+                        </TableCell>
+                        <TableCell className="px-3 py-3 text-slate-300">
                           {ingredient.unit}
-                        </td>
-                        <td className="py-3 px-3 text-right font-mono text-slate-300">
+                        </TableCell>
+                        <TableCell className="px-3 py-3 text-right font-mono text-slate-300">
                           {ingredient.costPerUnit > 0
                             ? peso(
                                 ingredient.quantityUsed *
                                   ingredient.costPerUnit,
                               )
                             : "—"}
-                        </td>
-                        <td className="py-3 px-3 text-right">
-                          <button
+                        </TableCell>
+                        <TableCell className="px-3 py-3 text-right">
+                          <Button
                             type="button"
                             onClick={() => handleRemoveIngredient(ingredient)}
                             disabled={isSaving}
                             aria-label={`Remove ${ingredient.name}`}
-                            className="p-1.5 rounded-lg border border-slate-800 bg-slate-900 text-slate-400 hover:text-red-400 hover:bg-slate-800 disabled:opacity-40"
+                            variant="outline"
+                            size="icon-sm"
+                            className="rounded-lg border-slate-800 bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-red-400"
                           >
                             <Trash2 className="size-3.5" />
-                          </button>
-                        </td>
-                      </tr>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
                     ))
                   )}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
 
             {/* Totals */}
@@ -782,28 +877,33 @@ export default function MenuPage() {
                 Add ingredient
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_7rem_6rem] gap-3">
-                <select
+                <Select
                   value={addForm.inventoryId}
-                  onChange={(e) => handleSelectInventory(e.target.value)}
-                  required
-                  aria-label="Inventory item"
-                  className="w-full rounded-xl border border-slate-800 bg-[#020617] px-3 py-2 text-slate-100 focus:border-amber-500 focus:outline-none"
+                  onValueChange={(value) => handleSelectInventory(value ?? "")}
                 >
-                  <option value="">Select inventory item</option>
+                  <SelectTrigger
+                    aria-label="Inventory item"
+                    className="w-full rounded-xl border-slate-800 bg-[#020617] text-slate-100"
+                  >
+                    <SelectValue placeholder="Select inventory item" />
+                  </SelectTrigger>
+                  <SelectContent>
                   {optionsByDepartment.map(([department, list]) => (
-                    <optgroup key={department} label={department}>
+                    <SelectGroup key={department}>
+                      <SelectLabel>{department}</SelectLabel>
                       {list.map((option) => (
-                        <option
+                        <SelectItem
                           key={option.inventoryId}
                           value={option.inventoryId}
                         >
                           {option.name} ({option.unit})
-                        </option>
+                        </SelectItem>
                       ))}
-                    </optgroup>
+                    </SelectGroup>
                   ))}
-                </select>
-                <input
+                  </SelectContent>
+                </Select>
+                <Input
                   type="number"
                   min="0"
                   step="0.01"
@@ -817,9 +917,9 @@ export default function MenuPage() {
                     }))
                   }
                   aria-label="Quantity used"
-                  className="w-full rounded-xl border border-slate-800 bg-[#020617] px-3 py-2 text-slate-100 placeholder:text-slate-600 focus:border-amber-500 focus:outline-none"
+                  className="h-10 w-full rounded-xl border-slate-800 bg-[#020617] text-slate-100 placeholder:text-slate-600 focus-visible:border-amber-500"
                 />
-                <input
+                <Input
                   type="text"
                   required
                   placeholder="Unit"
@@ -828,7 +928,7 @@ export default function MenuPage() {
                     setAddForm((prev) => ({ ...prev, unit: e.target.value }))
                   }
                   aria-label="Unit"
-                  className="w-full rounded-xl border border-slate-800 bg-[#020617] px-3 py-2 text-slate-100 placeholder:text-slate-600 focus:border-amber-500 focus:outline-none"
+                  className="h-10 w-full rounded-xl border-slate-800 bg-[#020617] text-slate-100 placeholder:text-slate-600 focus-visible:border-amber-500"
                 />
               </div>
 
@@ -840,26 +940,27 @@ export default function MenuPage() {
               )}
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
-                <button
+                <Button
                   type="button"
                   onClick={closeIngredients}
-                  className="px-4 py-2 rounded-xl border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800"
+                  variant="outline"
+                  className="rounded-xl border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white"
                 >
                   Done
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
                   disabled={isSaving || isIngredientsLoading}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 font-semibold text-slate-950 hover:bg-amber-400 shadow-md shadow-amber-500/20 disabled:opacity-50"
+                  className="rounded-xl bg-amber-500 font-semibold text-slate-950 shadow-md shadow-amber-500/20 hover:bg-amber-400"
                 >
                   <Plus className="size-4" />
                   {isSaving ? "Saving..." : "Add ingredient"}
-                </button>
+                </Button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          </DialogContent>
+        )}
+      </Dialog>
     </div>
   );
 }

@@ -1,6 +1,13 @@
-import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useNavigate,
+} from "react-router-dom";
 import NoomaLanding from "./pages/LandingPage";
 import Dashboard from "./components/Dashboard/dashboard";
+import { Toaster } from "@/components/ui/sonner";
 
 function DashboardPage() {
   const navigate = useNavigate();
@@ -32,6 +39,7 @@ export default function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <Toaster richColors position="top-right" theme="dark" />
     </BrowserRouter>
   );
 }

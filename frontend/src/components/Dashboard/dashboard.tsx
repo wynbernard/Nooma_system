@@ -1,9 +1,4 @@
-import {
-  useState,
-  type ChangeEvent,
-  type HTMLAttributes,
-  type ReactNode,
-} from "react";
+import { useState, type ChangeEvent } from "react";
 import {
   CalendarCheck,
   Users,
@@ -22,170 +17,25 @@ import {
   BadgeDollarSign,
   ChevronDown,
   ShoppingCart,
-  Receipt,
-  Store,
-  Tag,
-  Gift,
 } from "lucide-react";
+
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+
 import InventoryManagement from "../Inventory/Inventory";
 import MenuPage from "../Menu/menu";
+import SalesPage from "../Sales/Sales";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
-}
-
-/* -------------------------------------------------------------------------- */
-/*                            SHADCN UI PROXIES                               */
-/* -------------------------------------------------------------------------- */
-
-function Card({
-  className = "",
-  children,
-  ...props
-}: HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border border-slate-800/80 bg-slate-900/90 text-slate-100 shadow-xl backdrop-blur-sm transition-all duration-200 hover:border-slate-700/80",
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-}
-
-function CardHeader({
-  className = "",
-  children,
-  ...props
-}: HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div className={cn("flex flex-col space-y-1.5 p-6", className)} {...props}>
-      {children}
-    </div>
-  );
-}
-
-function CardTitle({
-  className = "",
-  children,
-  ...props
-}: HTMLAttributes<HTMLHeadingElement>) {
-  return (
-    <h3
-      className={cn(
-        "font-semibold leading-none tracking-tight text-slate-100",
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </h3>
-  );
-}
-
-function CardDescription({
-  className = "",
-  children,
-  ...props
-}: HTMLAttributes<HTMLParagraphElement>) {
-  return (
-    <p className={cn("text-xs text-slate-400", className)} {...props}>
-      {children}
-    </p>
-  );
-}
-
-function CardContent({
-  className = "",
-  children,
-  ...props
-}: HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div className={cn("p-6 pt-0", className)} {...props}>
-      {children}
-    </div>
-  );
-}
-
-function Button({
-  variant = "default",
-  size = "default",
-  className = "",
-  children,
-  ...props
-}: {
-  variant?: "default" | "outline" | "ghost" | "navy";
-  size?: "default" | "sm" | "lg";
-  className?: string;
-  children: React.ReactNode;
-  [key: string]: unknown;
-}) {
-  const base =
-    "inline-flex items-center justify-center rounded-xl text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]";
-
-  const variants = {
-    default:
-      "bg-amber-500 text-slate-950 hover:bg-amber-400 font-semibold shadow-lg shadow-amber-500/20",
-    outline:
-      "border border-slate-700 bg-slate-800/50 text-slate-200 hover:bg-slate-800 hover:text-white border-slate-700/80",
-    ghost: "hover:bg-slate-800 text-slate-300 hover:text-white",
-    navy: "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-600/25",
-  };
-
-  const sizes = {
-    default: "h-9 px-4 py-2",
-    sm: "h-8 rounded-lg px-3 text-[11px]",
-    lg: "h-11 rounded-xl px-6 text-sm",
-  };
-
-  return (
-    <button
-      className={cn(base, variants[variant], sizes[size], className)}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-}
-
-type BadgeProps = {
-  variant?: string;
-  className?: string;
-  children?: ReactNode;
-} & HTMLAttributes<HTMLSpanElement>;
-
-function Badge({
-  variant = "default",
-  className = "",
-  children,
-  ...props
-}: BadgeProps) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-wider transition-colors uppercase",
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </span>
-  );
-}
-
-function Input({ className = "", ...props }) {
-  return (
-    <input
-      className={cn(
-        "flex w-full rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:border-amber-500/80 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all",
-        className,
-      )}
-      {...props}
-    />
-  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -524,13 +374,14 @@ export default function Dashboard({
         {/* Dynamic Page Views */}
         <div
           className={
-            activeTab === "Inventory"
+            activeTab === "Inventory" || activeTab === "sales"
               ? "w-full"
               : "p-6 md:p-8 space-y-8 max-w-7xl w-full mx-auto"
           }
         >
           {activeTab === "Inventory" && <InventoryManagement />}
           {activeTab === "Menu" && <MenuPage />}
+          {activeTab === "sales" && <SalesPage />}
           {activeTab === "dashboard" && (
             <>
               {/* Header Intro */}
@@ -682,7 +533,8 @@ export default function Dashboard({
 
           {activeTab !== "dashboard" &&
             activeTab !== "Inventory" &&
-            activeTab !== "Menu" && (
+            activeTab !== "Menu" &&
+            activeTab !== "sales" && (
               <div className="flex flex-col items-center justify-center min-h-[400px] border border-dashed border-slate-800 rounded-3xl p-8 bg-slate-900/40 text-center">
                 <div className="p-4 rounded-full bg-slate-800/80 text-amber-400 mb-4 border border-slate-700">
                   <Utensils className="size-8" />

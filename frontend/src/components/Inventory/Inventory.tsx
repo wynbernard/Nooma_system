@@ -14,6 +14,25 @@ import {
   RefreshCw,
   Pencil,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Utility for merging Tailwind class names
 function cn(...classes: (string | false | null | undefined)[]) {
@@ -36,7 +55,7 @@ type InventoryItem = {
 
 type NewInventoryForm = {
   name: string;
-  department: string;
+  department: string | null;
   quantity: number;
   unit: string;
   purchases: number;
@@ -625,26 +644,26 @@ export default function InventoryManagement() {
 
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-3">
-            <button
+            {/* <Button
               onClick={handleExportCsv}
               disabled={inventory.length === 0}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/80 px-4 py-2.5 text-xs font-medium text-slate-300 transition-all hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Download className="size-3.5 text-slate-400" /> Export CSV
-            </button>
-            <button
+            </Button> */}
+            <Button
               onClick={() => setIsNewItemOpen(true)}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2.5 text-xs font-semibold text-slate-950 shadow-lg shadow-amber-500/20 transition-all hover:from-amber-400 hover:to-amber-500 active:scale-[0.98]"
             >
               <Plus className="size-4" /> Add New Item
-            </button>
+            </Button>
 
             {/* StoreHub sync: date + button */}
             <div className="inline-flex flex-wrap items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-1 pl-3">
               <label htmlFor="sync-date" className="sr-only">
                 StoreHub sync date
               </label>
-              <input
+              <Input
                 id="sync-date"
                 type="date"
                 value={syncDate}
@@ -688,7 +707,7 @@ export default function InventoryManagement() {
                   currentSyncStatus === "error" &&
                   "Status unavailable"}
               </span>
-              <button
+              <Button
                 onClick={handleSyncStoreHub}
                 disabled={isSyncing || !syncDate}
                 className="inline-flex items-center gap-2 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
@@ -697,7 +716,7 @@ export default function InventoryManagement() {
                   className={cn("size-3.5", isSyncing && "animate-spin")}
                 />
                 {isSyncing ? "Syncing..." : "Sync StoreHub"}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -705,7 +724,7 @@ export default function InventoryManagement() {
         {/* Executive Metrics Overview */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1: Total Stock Value */}
-          <div className="rounded-2xl border border-slate-800/80 bg-[#0F172A]/90 p-5 shadow-xl backdrop-blur-sm transition-all hover:border-slate-700/80">
+          <Card className="rounded-2xl border border-slate-800/80 bg-[#0F172A]/90 p-5 shadow-xl backdrop-blur-sm transition-all hover:border-slate-700/80">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Total Stock Valuation
@@ -720,10 +739,10 @@ export default function InventoryManagement() {
             <p className="mt-1 text-[11px] text-emerald-400 flex items-center gap-1 font-medium">
               <span>{inventory.length} items total in cellar & pantry</span>
             </p>
-          </div>
+          </Card>
 
           {/* Card 2: Low Stock Alerts */}
-          <div className="rounded-2xl border border-slate-800/80 bg-[#0F172A]/90 p-5 shadow-xl backdrop-blur-sm transition-all hover:border-amber-500/40">
+          <Card className="rounded-2xl border border-slate-800/80 bg-[#0F172A]/90 p-5 shadow-xl backdrop-blur-sm transition-all hover:border-amber-500/40">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Low Stock Warning
@@ -738,10 +757,10 @@ export default function InventoryManagement() {
             <p className="mt-1 text-[11px] text-slate-400 flex items-center gap-1 font-medium">
               <span>Below minimum reorder threshold</span>
             </p>
-          </div>
+          </Card>
 
           {/* Card 3: Out of Stock */}
-          <div className="rounded-2xl border border-slate-800/80 bg-[#0F172A]/90 p-5 shadow-xl backdrop-blur-sm transition-all hover:border-red-500/40">
+          <Card className="rounded-2xl border border-slate-800/80 bg-[#0F172A]/90 p-5 shadow-xl backdrop-blur-sm transition-all hover:border-red-500/40">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Out of Stock
@@ -756,10 +775,10 @@ export default function InventoryManagement() {
             <p className="mt-1 text-[11px] text-red-400/90 flex items-center gap-1 font-medium">
               <span>Requires immediate supplier PO</span>
             </p>
-          </div>
+          </Card>
 
           {/* Card 4: Healthy Stock */}
-          <div className="rounded-2xl border border-slate-800/80 bg-[#0F172A]/90 p-5 shadow-xl backdrop-blur-sm transition-all hover:border-emerald-500/40">
+          <Card className="rounded-2xl border border-slate-800/80 bg-[#0F172A]/90 p-5 shadow-xl backdrop-blur-sm transition-all hover:border-emerald-500/40">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Optimal Stock Levels
@@ -774,7 +793,7 @@ export default function InventoryManagement() {
             <p className="mt-1 text-[11px] text-emerald-400/90 flex items-center gap-1 font-medium">
               <span>Fully stocked for current service</span>
             </p>
-          </div>
+          </Card>
         </div>
 
         {/* Filter Controls & Search Bar */}
@@ -783,7 +802,7 @@ export default function InventoryManagement() {
             {/* Search Input */}
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
-              <input
+              <Input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -797,7 +816,7 @@ export default function InventoryManagement() {
               {categories.map((cat) => {
                 const isActive = selectedCategory === cat;
                 return (
-                  <button
+                  <Button
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
                     className={cn(
@@ -808,7 +827,7 @@ export default function InventoryManagement() {
                     )}
                   >
                     {cat}
-                  </button>
+                  </Button>
                 );
               })}
             </div>
@@ -816,7 +835,7 @@ export default function InventoryManagement() {
         </div>
 
         {/* Inventory Data Table */}
-        <div className="rounded-2xl border border-slate-800/80 bg-[#0F172A]/90 shadow-xl overflow-hidden">
+        <Card className="rounded-2xl border-slate-800 bg-[#0F172A]/90 shadow-xl overflow-hidden">
           <div className="p-5 border-b border-slate-800 flex items-center justify-between">
             <div>
               <h2 className="text-base font-serif font-semibold text-white">
@@ -838,47 +857,62 @@ export default function InventoryManagement() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-slate-800 bg-[#020617]/60 text-[10px] uppercase tracking-wider text-slate-400">
-                <tr>
-                  <th className="py-3.5 px-4 font-semibold">
+            <Table className="w-full text-left text-xs">
+              <TableHeader className="border-b border-slate-800 bg-[#020617]/60 text-[10px] uppercase tracking-wider text-slate-400">
+                <TableRow>
+                  <TableHead className="py-3.5 px-4 font-semibold">
                     SKU & Item Details
-                  </th>
-                  <th className="py-3.5 px-4 font-semibold">Category</th>
-                  <th className="py-3.5 px-4 font-semibold">Current Stock</th>
-                  <th className="py-3.5 px-4 font-semibold">Status</th>
-                  <th className="py-3.5 px-4 font-semibold">Unit Price</th>
-                  <th className="py-3.5 px-4 font-semibold">Total Value</th>
-                  <th className="py-3.5 px-4 font-semibold">Supplier</th>
-                  <th className="py-3.5 px-4 font-semibold text-right">
+                  </TableHead>
+                  <TableHead className="py-3.5 px-4 font-semibold">
+                    Category
+                  </TableHead>
+                  <TableHead className="py-3.5 px-4 font-semibold">
+                    Current Stock
+                  </TableHead>
+                  <TableHead className="py-3.5 px-4 font-semibold">
+                    Status
+                  </TableHead>
+                  <TableHead className="py-3.5 px-4 font-semibold">
+                    Unit Price
+                  </TableHead>
+                  <TableHead className="py-3.5 px-4 font-semibold">
+                    Total Value
+                  </TableHead>
+                  <TableHead className="py-3.5 px-4 font-semibold">
+                    Supplier
+                  </TableHead>
+                  <TableHead className="py-3.5 px-4 font-semibold text-right">
                     Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60">
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="divide-y divide-slate-800/60">
                 {isLoading ? (
-                  <tr>
+                  <TableRow>
                     <td
                       colSpan={8}
                       className="py-12 text-center text-slate-400"
                     >
                       Loading inventory...
                     </td>
-                  </tr>
+                  </TableRow>
                 ) : loadError ? (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center text-red-300">
+                  <TableRow>
+                    <TableCell
+                      colSpan={8}
+                      className="py-12 text-center text-red-300"
+                    >
                       {loadError}{" "}
-                      <button
+                      <Button
                         onClick={reloadInventory}
                         className="ml-2 text-amber-300 underline underline-offset-2"
                       >
                         Retry
-                      </button>
-                    </td>
-                  </tr>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
                 ) : filteredInventory.length === 0 ? (
-                  <tr>
+                  <TableRow>
                     <td
                       colSpan={8}
                       className="py-12 text-center text-slate-500"
@@ -887,7 +921,7 @@ export default function InventoryManagement() {
                         ? "No inventory items yet. Add an item or sync from StoreHub to get started."
                         : "No matching inventory items found."}
                     </td>
-                  </tr>
+                  </TableRow>
                 ) : (
                   filteredInventory.map((item) => {
                     const stockPercentage =
@@ -903,12 +937,12 @@ export default function InventoryManagement() {
                     const status = getStatus(item);
 
                     return (
-                      <tr
+                      <TableRow
                         key={item.id}
                         className="hover:bg-slate-800/40 transition-colors group"
                       >
                         {/* Item Info */}
-                        <td className="py-4 px-4">
+                        <TableCell className="py-4 px-4">
                           <div className="flex flex-col">
                             <span className="font-semibold text-slate-100 text-xs font-serif">
                               {item.name}
@@ -917,17 +951,17 @@ export default function InventoryManagement() {
                               {item.id}
                             </span>
                           </div>
-                        </td>
+                        </TableCell>
 
                         {/* Category */}
-                        <td className="py-4 px-4">
+                        <TableCell className="py-4 px-4">
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/80 text-slate-300 text-[11px] border border-slate-700/50">
                             {item.category}
                           </span>
-                        </td>
+                        </TableCell>
 
                         {/* Stock Level Bar & Counter */}
-                        <td className="py-4 px-4 min-w-[170px]">
+                        <TableCell className="py-4 px-4 min-w-[170px]">
                           <div className="flex flex-col gap-1.5">
                             <div className="flex items-center justify-between text-xs font-semibold text-slate-200">
                               <span>
@@ -951,10 +985,10 @@ export default function InventoryManagement() {
                               />
                             </div>
                           </div>
-                        </td>
+                        </TableCell>
 
                         {/* Status Badge */}
-                        <td className="py-4 px-4">
+                        <TableCell className="py-4 px-4">
                           <span
                             className={cn(
                               "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wider uppercase border",
@@ -976,31 +1010,31 @@ export default function InventoryManagement() {
                             />
                             {status}
                           </span>
-                        </td>
+                        </TableCell>
 
                         {/* Unit Price */}
-                        <td className="py-4 px-4 font-mono text-slate-300">
+                        <TableCell className="py-4 px-4 font-mono text-slate-300">
                           ₱{item.costPerUnit.toLocaleString("en-PH")} /{" "}
                           {item.unit}
-                        </td>
+                        </TableCell>
 
                         {/* Total Value */}
-                        <td className="py-4 px-4 font-mono font-semibold text-amber-400">
+                        <TableCell className="py-4 px-4 font-mono font-semibold text-amber-400">
                           ₱
                           {(item.stock * item.costPerUnit).toLocaleString(
                             "en-PH",
                           )}
-                        </td>
+                        </TableCell>
 
                         {/* Supplier */}
-                        <td className="py-4 px-4 text-slate-400">
+                        <TableCell className="py-4 px-4 text-slate-400">
                           {item.supplier || "—"}
-                        </td>
+                        </TableCell>
 
                         {/* Quick Increment/Decrement Actions */}
-                        <td className="py-4 px-4 text-right">
+                        <TableCell className="py-4 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
-                            <button
+                            <Button
                               onClick={() => openEditModal(item)}
                               disabled={isSaving}
                               title="Edit item details"
@@ -1008,8 +1042,8 @@ export default function InventoryManagement() {
                               className="p-1.5 rounded-lg border border-slate-800 bg-slate-900 text-slate-400 hover:text-amber-300 hover:bg-slate-800 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                             >
                               <Pencil className="size-3.5" />
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                               onClick={() =>
                                 handleQuickQuantityChange(item.id, -1)
                               }
@@ -1018,8 +1052,8 @@ export default function InventoryManagement() {
                               className="p-1.5 rounded-lg border border-slate-800 bg-slate-900 text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                             >
                               <MinusCircle className="size-3.5" />
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                               onClick={() =>
                                 handleQuickQuantityChange(item.id, 1)
                               }
@@ -1028,23 +1062,23 @@ export default function InventoryManagement() {
                               className="p-1.5 rounded-lg border border-slate-800 bg-slate-900 text-slate-400 hover:text-emerald-400 hover:bg-slate-800 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                             >
                               <PlusCircle className="size-3.5" />
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                               onClick={() => openAdjustModal(item)}
                               className="px-2.5 py-1 rounded-lg border border-slate-700/80 bg-slate-800 text-[11px] font-medium text-amber-300 hover:bg-slate-700 transition-colors"
                             >
                               Adjust
-                            </button>
+                            </Button>
                           </div>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   })
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
-        </div>
+        </Card>
       </div>
 
       {/* Register New Inventory Modal */}
@@ -1061,14 +1095,14 @@ export default function InventoryManagement() {
                 </h3>
               </div>
 
-              <button
+              <Button
                 type="button"
                 onClick={() => setIsNewItemOpen(false)}
                 aria-label="Close"
                 className="p-1.5 rounded-xl border border-slate-800 bg-slate-900 text-slate-400 hover:text-white"
               >
                 <X className="size-4" />
-              </button>
+              </Button>
             </div>
 
             <form
@@ -1080,7 +1114,7 @@ export default function InventoryManagement() {
                 <label className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">
                   Inventory Name *
                 </label>
-                <input
+                <Input
                   type="text"
                   required
                   placeholder="e.g. Chicken Breast"
@@ -1097,24 +1131,23 @@ export default function InventoryManagement() {
                 <label className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">
                   Department *
                 </label>
-                <select
-                  required
+                <Select
                   value={newItem.department}
-                  onChange={(e) =>
-                    setNewItem((prev) => ({
-                      ...prev,
-                      department: e.target.value,
-                    }))
+                  onValueChange={(value) =>
+                    setNewItem((prev) => ({ ...prev, department: value }))
                   }
-                  className="w-full rounded-xl border border-slate-800 bg-[#020617] px-3 py-2 text-slate-100 focus:border-amber-500 focus:outline-none"
                 >
-                  <option value="">Select Department</option>
-                  {DEPARTMENTS.map((dept) => (
-                    <option key={dept} value={dept}>
-                      {dept}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full border-slate-800 bg-[#020617] text-slate-100">
+                    <SelectValue placeholder="Select Department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DEPARTMENTS.map((dept) => (
+                      <SelectItem key={dept} value={dept}>
+                        {dept}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Quantity and Unit */}
@@ -1123,7 +1156,7 @@ export default function InventoryManagement() {
                   <label className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">
                     Quantity *
                   </label>
-                  <input
+                  <Input
                     type="number"
                     min="0"
                     step="0.01"
@@ -1143,7 +1176,7 @@ export default function InventoryManagement() {
                   <label className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">
                     Unit *
                   </label>
-                  <input
+                  <Input
                     type="text"
                     required
                     placeholder="kg / pcs / liters"
@@ -1170,7 +1203,7 @@ export default function InventoryManagement() {
                     <label className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">
                       {field.label}
                     </label>
-                    <input
+                    <Input
                       type="number"
                       min="0"
                       step="0.01"
@@ -1192,7 +1225,7 @@ export default function InventoryManagement() {
                 <label className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">
                   Remarks
                 </label>
-                <textarea
+                <Textarea
                   rows={3}
                   placeholder="Additional inventory notes..."
                   value={newItem.remarks}
@@ -1208,20 +1241,20 @@ export default function InventoryManagement() {
 
               {/* Buttons */}
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
-                <button
+                <Button
                   type="button"
                   onClick={() => setIsNewItemOpen(false)}
                   className="px-4 py-2 rounded-xl border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
                   disabled={isSaving}
                   className="px-4 py-2 rounded-xl bg-amber-500 font-semibold text-slate-950 hover:bg-amber-400 shadow-md shadow-amber-500/20 disabled:opacity-50"
                 >
                   {isSaving ? "Saving..." : "Save Inventory"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -1240,7 +1273,7 @@ export default function InventoryManagement() {
                   Edit Inventory Item
                 </h3>
               </div>
-              <button
+              <Button
                 type="button"
                 onClick={() => {
                   setIsEditOpen(false);
@@ -1250,7 +1283,7 @@ export default function InventoryManagement() {
                 className="p-1.5 rounded-xl border border-slate-800 bg-slate-900 text-slate-400 hover:text-white"
               >
                 <X className="size-4" />
-              </button>
+              </Button>
             </div>
 
             <form
@@ -1261,7 +1294,7 @@ export default function InventoryManagement() {
                 <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-400">
                   Item Name *
                 </label>
-                <input
+                <Input
                   type="text"
                   required
                   value={editData.name}
@@ -1277,29 +1310,32 @@ export default function InventoryManagement() {
                   <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-400">
                     Department *
                   </label>
-                  <select
-                    required
+                  <Select
                     value={editData.category}
-                    onChange={(e) =>
+                    onValueChange={(value) =>
                       setEditData((prev) => ({
                         ...prev,
-                        category: e.target.value,
+                        category: value ?? "",
                       }))
                     }
-                    className="w-full rounded-xl border border-slate-800 bg-[#020617] px-3 py-2 text-slate-100 focus:border-amber-500 focus:outline-none"
                   >
-                    {DEPARTMENTS.map((department) => (
-                      <option key={department} value={department}>
-                        {department}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-full border-slate-800 bg-[#020617] text-slate-100">
+                      <SelectValue placeholder="Select Department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DEPARTMENTS.map((department) => (
+                        <SelectItem key={department} value={department}>
+                          {department}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-400">
                     Unit *
                   </label>
-                  <input
+                  <Input
                     type="text"
                     required
                     value={editData.unit}
@@ -1323,7 +1359,7 @@ export default function InventoryManagement() {
                     <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-400">
                       {label} *
                     </label>
-                    <input
+                    <Input
                       type="number"
                       min={min}
                       step="0.01"
@@ -1343,7 +1379,7 @@ export default function InventoryManagement() {
                   <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-400">
                     Supplier
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={editData.supplier}
                     onChange={(e) =>
@@ -1358,7 +1394,7 @@ export default function InventoryManagement() {
               </div>
 
               <div className="flex items-center justify-end gap-3 border-t border-slate-800 pt-4">
-                <button
+                <Button
                   type="button"
                   onClick={() => {
                     setIsEditOpen(false);
@@ -1367,14 +1403,14 @@ export default function InventoryManagement() {
                   className="px-4 py-2 rounded-xl border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
                   disabled={isSaving}
                   className="px-4 py-2 rounded-xl bg-amber-500 font-semibold text-slate-950 hover:bg-amber-400 shadow-md shadow-amber-500/20 disabled:opacity-50"
                 >
                   {isSaving ? "Saving..." : "Save Changes"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -1394,14 +1430,14 @@ export default function InventoryManagement() {
                   {selectedItemForAdjust.name}
                 </h3>
               </div>
-              <button
+              <Button
                 type="button"
                 onClick={() => setIsAdjustOpen(false)}
                 aria-label="Close"
                 className="p-1.5 rounded-xl border border-slate-800 bg-slate-900 text-slate-400 hover:text-white"
               >
                 <X className="size-4" />
-              </button>
+              </Button>
             </div>
 
             <form
@@ -1421,7 +1457,7 @@ export default function InventoryManagement() {
                   Adjustment Type
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                  <button
+                  <Button
                     type="button"
                     onClick={() =>
                       setAdjustData((prev) => ({ ...prev, type: "add" }))
@@ -1434,8 +1470,8 @@ export default function InventoryManagement() {
                     )}
                   >
                     + Add Stock (Inbound)
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
                     onClick={() =>
                       setAdjustData((prev) => ({ ...prev, type: "subtract" }))
@@ -1448,7 +1484,7 @@ export default function InventoryManagement() {
                     )}
                   >
                     - Deduct Stock (Outbound)
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -1457,7 +1493,7 @@ export default function InventoryManagement() {
                 <label className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">
                   Quantity ({selectedItemForAdjust.unit})
                 </label>
-                <input
+                <Input
                   type="number"
                   min="0.01"
                   step="0.01"
@@ -1478,27 +1514,30 @@ export default function InventoryManagement() {
                 <label className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">
                   Reason for Adjustment
                 </label>
-                <select
+                <Select
                   value={adjustData.reason}
-                  onChange={(e) =>
-                    setAdjustData((prev) => ({
-                      ...prev,
-                      reason: e.target.value,
-                    }))
+                  onValueChange={(value) =>
+                    setAdjustData((prev) => ({ ...prev, reason: value ?? "" }))
                   }
-                  className="w-full rounded-xl border border-slate-800 bg-[#020617] px-3 py-2 text-slate-100 focus:border-amber-500 focus:outline-none"
                 >
-                  <option value="Delivery Receive">
-                    New Supplier Delivery
-                  </option>
-                  <option value="Kitchen Usage">Kitchen Prep Usage</option>
-                  <option value="Spoilage / Waste">
-                    Spoilage / Waste / Expired
-                  </option>
-                  <option value="Stock Correction">
-                    Audited Physical Count Correction
-                  </option>
-                </select>
+                  <SelectTrigger className="w-full border-slate-800 bg-[#020617] text-slate-100">
+                    <SelectValue placeholder="Select reason" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Delivery Receive">
+                      New Supplier Delivery
+                    </SelectItem>
+                    <SelectItem value="Kitchen Usage">
+                      Kitchen Prep Usage
+                    </SelectItem>
+                    <SelectItem value="Spoilage / Waste">
+                      Spoilage / Waste / Expired
+                    </SelectItem>
+                    <SelectItem value="Stock Correction">
+                      Audited Physical Count Correction
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Note */}
@@ -1506,7 +1545,7 @@ export default function InventoryManagement() {
                 <label className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">
                   Note (optional)
                 </label>
-                <input
+                <Input
                   type="text"
                   value={adjustData.note}
                   onChange={(e) =>
@@ -1518,20 +1557,20 @@ export default function InventoryManagement() {
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
-                <button
+                <Button
                   type="button"
                   onClick={() => setIsAdjustOpen(false)}
                   className="px-4 py-2 rounded-xl border border-slate-800 text-slate-400 hover:text-white"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
                   disabled={isSaving}
                   className="px-4 py-2 rounded-xl bg-amber-500 font-semibold text-slate-950 hover:bg-amber-400 shadow-md shadow-amber-500/20 disabled:opacity-50"
                 >
                   {isSaving ? "Saving..." : "Confirm Adjustment"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
